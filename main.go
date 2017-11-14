@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
+	"net/http"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -58,6 +61,9 @@ func makeConsumer(client sarama.Client, brokers []string) {
 	}
 	defer consumer.Close()
 
+	c := http.Client{
+		Timeout: time.Second * 8,
+	}
 	mcb := func(msg *sarama.ConsumerMessage) {
 		if len(msg.Value) > 0 {
 			req := InvocationRequest{}
@@ -68,6 +74,21 @@ func makeConsumer(client sarama.Client, brokers []string) {
 			}
 
 			log.Printf("faas-request to function: %s data: %s", string(req.Name), req.Data)
+
+			reader := bytes.NewReader(req.Data)
+			httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("http://gateway:8080/function/%s", req.Name), reader)
+			res, doErr := c.Do(httpReq)
+			if doErr != nil {
+				log.Println("Invalid response:", doErr)
+				return
+			}
+			if res.Body != nil {
+				defer res.Body.Close()
+
+				bytesOut, _ := ioutil.ReadAll(res.Body)
+				log.Printf("Response from %s %s", req.Name, string(bytesOut))
+			}
+
 		} else {
 			log.Printf("Empty message received.")
 		}

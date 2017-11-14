@@ -26,9 +26,11 @@ services:
     hostname: kafka-connector
     networks:
       - streaming
-
+      - func_functions
 
 networks:
   streaming:
     driver: overlay
     attachable: true
+  func_functions:
+    external: true
