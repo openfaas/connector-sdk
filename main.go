@@ -75,7 +75,7 @@ func makeConsumer(client sarama.Client, brokers []string) {
 
 			log.Printf("faas-request to function: %s data: %s", string(req.Name), req.Data)
 
-			reader := bytes.NewReader(req.Data)
+			reader := bytes.NewReader([]byte(req.Data))
 			httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("http://gateway:8080/function/%s", req.Name), reader)
 			res, doErr := c.Do(httpReq)
 			if doErr != nil {
@@ -85,8 +85,13 @@ func makeConsumer(client sarama.Client, brokers []string) {
 			if res.Body != nil {
 				defer res.Body.Close()
 
-				bytesOut, _ := ioutil.ReadAll(res.Body)
-				log.Printf("Response from %s %s", req.Name, string(bytesOut))
+				bytesOut, readErr := ioutil.ReadAll(res.Body)
+				if readErr != nil {
+					log.Printf("Error reading body")
+				}
+				stringOutput := string(bytesOut)
+
+				log.Printf("Response [%d] from %s %s", res.StatusCode, req.Name, stringOutput)
 			}
 
 		} else {
@@ -117,5 +122,5 @@ func makeConsumer(client sarama.Client, brokers []string) {
 
 type InvocationRequest struct {
 	Name string `json:"name"`
-	Data []byte `json:"data"`
+	Data string `json:"data"`
 }
