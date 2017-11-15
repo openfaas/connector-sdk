@@ -1,3 +1,25 @@
+## Kakfa-connector
+
+This is a Proof-of-Concept for connecting a Kakfa topic to the OpenFaaS API Gateway.
+
+Usage:
+
+* Deploy this sample
+* Publish messages in JSON format to the `faas-request` topic:
+
+```
+{"name": "func_echoit", "data": "echo this message"}
+```
+
+This causes the `"func_echoit"` function to be triggered synchronously with the data `"echo this message"`.
+
+* The HTTP response from the function is written to the logs of the `connector` service.
+
+Todo:
+- [] Write function reponse back to a separate topic or Callback-URL
+
+### Development
+
 Deploy
 
 ```
