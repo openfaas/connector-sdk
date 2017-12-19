@@ -1,4 +1,4 @@
-## Kakfa-connector
+## Kafka-connector
 
 This is a Proof-of-Concept for connecting a Kakfa topic to the OpenFaaS API Gateway.
 
