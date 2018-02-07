@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -22,7 +24,13 @@ var (
 func main() {
 	var client sarama.Client
 	var err error
-	brokers := []string{"kafka:9092"}
+
+	broker := "kafka"
+	if val, exists := os.LookupEnv("broker_host"); exists {
+		broker = val
+	}
+
+	brokers := []string{broker + ":9092"}
 	for {
 
 		client, err = sarama.NewClient(brokers, nil)
@@ -32,14 +40,15 @@ func main() {
 		if client != nil {
 			client.Close()
 		}
-		fmt.Println("Wait for kafka brokers coming up... ", brokers)
+		fmt.Println("Wait for brokers ("+broker+") to come up.. ", brokers)
+
 		time.Sleep(1 * time.Second)
 	}
+
 	fmt.Println("Topics")
 	fmt.Println(client.Topics())
 
 	makeConsumer(client, brokers)
-
 }
 
 func makeConsumer(client sarama.Client, brokers []string) {
@@ -61,9 +70,8 @@ func makeConsumer(client sarama.Client, brokers []string) {
 	}
 	defer consumer.Close()
 
-	c := http.Client{
-		Timeout: time.Second * 8,
-	}
+	c := makeClient(time.Second * 8)
+
 	mcb := func(msg *sarama.ConsumerMessage) {
 		if len(msg.Value) > 0 {
 			req := InvocationRequest{}
@@ -77,6 +85,8 @@ func makeConsumer(client sarama.Client, brokers []string) {
 
 			reader := bytes.NewReader([]byte(req.Data))
 			httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("http://gateway:8080/function/%s", req.Name), reader)
+			defer httpReq.Body.Close()
+
 			res, doErr := c.Do(httpReq)
 			if doErr != nil {
 				log.Println("Invalid response:", doErr)
@@ -123,4 +133,21 @@ func makeConsumer(client sarama.Client, brokers []string) {
 type InvocationRequest struct {
 	Name string `json:"name"`
 	Data string `json:"data"`
+}
+
+func makeClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   timeout,
+				KeepAlive: 10 * time.Second,
+			}).DialContext,
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 100,
+			// DisableKeepAlives:     false,
+			IdleConnTimeout: 120 * time.Millisecond,
+			// ExpectContinueTimeout: 1500 * time.Millisecond,
+		},
+	}
 }

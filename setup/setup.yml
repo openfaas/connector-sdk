@@ -22,7 +22,7 @@ services:
       - streaming
 
   connector:
-    image: connector
+    image: alexellis2/kafka-connector:latest
     hostname: kafka-connector
     networks:
       - streaming
@@ -34,3 +34,5 @@ networks:
     attachable: true
   func_functions:
     external: true
+
+

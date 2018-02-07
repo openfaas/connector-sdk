@@ -1,3 +1,4 @@
 #!/bin/sh
 
-docker run -ti --network=kafka_streaming -v `pwd`:/root alpine:3.6 sh
+docker build -t alexellis2/kafka-connector:latest .
+(cd setup && docker service rm kafka_connector ; docker stack deploy kafka -c setup.yml)

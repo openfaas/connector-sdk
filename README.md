@@ -1,6 +1,8 @@
 ## Kafka-connector
 
-This is a Proof-of-Concept for connecting a Kakfa topic to the OpenFaaS API Gateway.
+This is a Proof-of-Concept for connecting a Kakfa topic to the OpenFaaS API Gateway. 
+
+This sample is setup for use on Swarm, but the application code will also work on Kubernetes.
 
 Usage:
 
@@ -20,12 +22,19 @@ Todo:
 
 ### Development
 
-Deploy
+Build the connector image:
 
 ```
-cd setup
-docker service rm kafka_connector ; docker stack deploy kafka -c setup.yml
+./build.sh
 ```
+
+Deploy the Kafka stack and the connector
+
+```
+(cd setup && docker service rm kafka_connector ; docker stack deploy kafka -c setup.yml)
+```
+
+> Note: If the broker has a different name from `kafka` you can pass the `broker_host` environmental variable. This exclude the port.
 
 Trigger a function via the topic "faas-request"
 
