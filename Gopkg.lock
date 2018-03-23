@@ -44,6 +44,12 @@
   revision = "553a641470496b2327abcac10b36396bd98e45c9"
 
 [[projects]]
+  name = "github.com/openfaas/faas"
+  packages = ["gateway/requests"]
+  revision = "ae1279a553305da234a1775a687984c1fee05591"
+  version = "0.7.7"
+
+[[projects]]
   name = "github.com/pierrec/lz4"
   packages = ["."]
   revision = "08c27939df1bd95e881e2c2367a749964ad1fceb"
@@ -64,6 +70,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a3c5d68888bb6d738f3f2e247bba87dc8e21f76b29c87116732926b0b124702d"
+  inputs-digest = "b22ced4d1e2bc99bcfea04888ed37f6fa61c152cf595216ad94bf71fc2d66be1"
   solver-name = "gps-cdcl"
   solver-version = 1

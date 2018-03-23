@@ -11,10 +11,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
+	"github.com/openfaas/faas/gateway/requests"
 )
 
 // Sarama currently cannot support latest kafka protocol version 0_11_
@@ -26,6 +28,36 @@ type connectorConfig struct {
 	gatewayURL      string
 	upstreamTimeout time.Duration
 	topics          []string
+}
+
+type TopicMap struct {
+	lookup *map[string][]string
+	lock   sync.Mutex
+}
+
+func (t *TopicMap) Match(topicName string) []string {
+	t.lock.Lock()
+
+	var values []string
+
+	for key, val := range *t.lookup {
+		if key == topicName {
+			values = val
+			break
+		}
+	}
+
+	t.lock.Unlock()
+
+	return values
+}
+
+func (t *TopicMap) Sync(updated *map[string][]string) {
+	t.lock.Lock()
+
+	t.lookup = updated
+
+	t.lock.Unlock()
 }
 
 func main() {
@@ -83,6 +115,52 @@ func main() {
 	makeConsumer(client, brokers, config)
 }
 
+type ServiceListBroker struct {
+	gatewayURL string
+	client     *http.Client
+}
+
+func (s *ServiceListBroker) Build() (map[string][]string, error) {
+	var err error
+	serviceMap := make(map[string][]string)
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/system/functions", s.gatewayURL), nil)
+	res, reqErr := s.client.Do(req)
+
+	if reqErr != nil {
+		return serviceMap, reqErr
+	}
+
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
+
+	bytesOut, _ := ioutil.ReadAll(res.Body)
+
+	functions := []requests.Function{}
+	marshalErr := json.Unmarshal(bytesOut, &functions)
+
+	if marshalErr != nil {
+		return serviceMap, marshalErr
+	}
+
+	for _, function := range functions {
+		if *function.Labels != nil {
+			labels := *function.Labels
+
+			if topic, pass := labels["topic"]; pass {
+
+				if serviceMap[topic] == nil {
+					serviceMap[topic] = []string{}
+				}
+				serviceMap[topic] = append(serviceMap[topic], function.Name)
+			}
+		}
+	}
+
+	return serviceMap, err
+}
+
 func makeConsumer(client sarama.Client, brokers []string, config connectorConfig) {
 	//setup consumer
 	cConfig := cluster.NewConfig()
@@ -102,44 +180,65 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 	if err != nil {
 		log.Fatalln("Fail to create Kafka consumer: ", err)
 	}
+
 	defer consumer.Close()
 
 	c := makeClient(time.Second * 8)
 
+	lookup := make(map[string][]string)
+	topicMap := TopicMap{
+		lookup: &lookup,
+	}
+
+	listBroker := ServiceListBroker{
+		gatewayURL: config.gatewayURL,
+		client:     makeClient(time.Second * 3),
+	}
+
+	ticker := time.NewTicker(time.Second * 3)
+
+	go func() {
+		for {
+			<-ticker.C
+			lookups, err := listBroker.Build()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			log.Println("Syncing topic map")
+			topicMap.Sync(&lookups)
+		}
+	}()
+
 	mcb := func(msg *sarama.ConsumerMessage) {
 		if len(msg.Value) > 0 {
-			req := InvocationRequest{}
-			err := json.Unmarshal(msg.Value, &req)
-			if err != nil {
-				log.Println("Invalid JSON on topic:", err)
-				return
-			}
 
-			log.Printf("Invoke function: %s data: %s", string(req.Name), req.Data)
+			matchedFunctions := topicMap.Match(msg.Topic)
+			for _, matchedFunction := range matchedFunctions {
 
-			reader := bytes.NewReader([]byte(req.Data))
-			httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/function/%s", config.gatewayURL, req.Name), reader)
-			defer httpReq.Body.Close()
+				log.Printf("Invoke function: %s", matchedFunction)
 
-			res, doErr := c.Do(httpReq)
-			if doErr != nil {
-				log.Println("Invalid response:", doErr)
-				return
-			}
-			if res.Body != nil {
-				defer res.Body.Close()
+				reader := bytes.NewReader([]byte(msg.Value))
+				httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/function/%s", config.gatewayURL, matchedFunction), reader)
+				defer httpReq.Body.Close()
 
-				bytesOut, readErr := ioutil.ReadAll(res.Body)
-				if readErr != nil {
-					log.Printf("Error reading body")
+				res, doErr := c.Do(httpReq)
+				if doErr != nil {
+					log.Println("Invalid response:", doErr)
+					return
 				}
-				stringOutput := string(bytesOut)
+				if res.Body != nil {
+					defer res.Body.Close()
 
-				log.Printf("Response [%d] from %s %s", res.StatusCode, req.Name, stringOutput)
+					bytesOut, readErr := ioutil.ReadAll(res.Body)
+					if readErr != nil {
+						log.Printf("Error reading body")
+					}
+					stringOutput := string(bytesOut)
+
+					log.Printf("Response [%d] from %s %s", res.StatusCode, matchedFunction, stringOutput)
+				}
+
 			}
-
-		} else {
-			log.Printf("Empty message received.")
 		}
 	}
 
