@@ -24,6 +24,9 @@ services:
   connector:
     image: alexellis2/kafka-connector:latest
     hostname: kafka-connector
+    environment:
+      gateway_url: http://gateway:8080
+      topics: "faas-request,"
     networks:
       - streaming
       - func_functions

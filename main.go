@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -21,6 +22,12 @@ var (
 	SARAMA_KAFKA_PROTO_VER = sarama.V0_10_2_0
 )
 
+type connectorConfig struct {
+	gatewayURL      string
+	upstreamTimeout time.Duration
+	topics          []string
+}
+
 func main() {
 	var client sarama.Client
 	var err error
@@ -28,6 +35,31 @@ func main() {
 	broker := "kafka"
 	if val, exists := os.LookupEnv("broker_host"); exists {
 		broker = val
+	}
+
+	topics := []string{}
+	if val, exists := os.LookupEnv("topics"); exists {
+		for _, topic := range strings.Split(val, ",") {
+			if len(topic) > 0 {
+				topics = append(topics, topic)
+			}
+		}
+	}
+	if len(topics) == 0 {
+		log.Fatal(`Provide a list of topics i.e. topics="payment_published,slack_joined"`)
+	}
+
+	gatewayURL := "http://gateway:8080"
+	if val, exists := os.LookupEnv("gateway_url"); exists {
+		gatewayURL = val
+	}
+
+	upstreamTimeout := time.Second * 30
+
+	config := connectorConfig{
+		gatewayURL:      gatewayURL,
+		upstreamTimeout: upstreamTimeout,
+		topics:          topics,
 	}
 
 	brokers := []string{broker + ":9092"}
@@ -48,10 +80,10 @@ func main() {
 	fmt.Println("Topics")
 	fmt.Println(client.Topics())
 
-	makeConsumer(client, brokers)
+	makeConsumer(client, brokers, config)
 }
 
-func makeConsumer(client sarama.Client, brokers []string) {
+func makeConsumer(client sarama.Client, brokers []string, config connectorConfig) {
 	//setup consumer
 	cConfig := cluster.NewConfig()
 	cConfig.Version = SARAMA_KAFKA_PROTO_VER
@@ -62,7 +94,9 @@ func makeConsumer(client sarama.Client, brokers []string) {
 	cConfig.Group.Heartbeat.Interval = 2 * time.Second
 
 	group := "faas-kafka-queue-workers"
-	topics := []string{"faas-request"}
+
+	topics := config.topics
+	log.Printf("Binding to topics: %v", config.topics)
 
 	consumer, err := cluster.NewConsumer(brokers, group, topics, cConfig)
 	if err != nil {
@@ -81,10 +115,10 @@ func makeConsumer(client sarama.Client, brokers []string) {
 				return
 			}
 
-			log.Printf("faas-request to function: %s data: %s", string(req.Name), req.Data)
+			log.Printf("Invoke function: %s data: %s", string(req.Name), req.Data)
 
 			reader := bytes.NewReader([]byte(req.Data))
-			httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("http://gateway:8080/function/%s", req.Name), reader)
+			httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/function/%s", config.gatewayURL, req.Name), reader)
 			defer httpReq.Body.Close()
 
 			res, doErr := c.Do(httpReq)

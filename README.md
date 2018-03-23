@@ -18,7 +18,7 @@ This causes the `"func_echoit"` function to be triggered synchronously with the 
 * The HTTP response from the function is written to the logs of the `connector` service.
 
 Todo:
-- [] Write function reponse back to a separate topic or Callback-URL
+- [] Write function response back to a separate topic or Callback-URL
 
 ### Development
 
