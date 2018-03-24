@@ -2,7 +2,9 @@ FROM golang:1.9.2
 RUN mkdir -p /go/src/github.com/openfaas-incubator/kafka-connector
 WORKDIR /go/src/github.com/openfaas-incubator/kafka-connector
 
-COPY .  .
+COPY vendor     vendor
+COPY types      types
+COPY main.go    .
 
 # Run a gofmt and exclude all vendored code.
 RUN test -z "$(gofmt -l $(find . -type f -name '*.go' -not -path "./vendor/*"))"
