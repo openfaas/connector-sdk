@@ -2,41 +2,42 @@
 
 This is a Proof-of-Concept for connecting a Kakfa topic to the OpenFaaS API Gateway. 
 
-This sample is setup for use on Swarm, but the application code will also work on Kubernetes.
+## Conceptual design
 
-Usage:
+![](overview.jpg)
 
-* Deploy this sample
-* Publish messages in JSON format to the `faas-request` topic:
+This diagram shows the Kafka connector on the left hand side. It is responsible for querying the API Gateway for a list of functions. It will then build up a map or table of which functions have advertised an interested in which topics.
 
-```
-{"name": "func_echoit", "data": "echo this message"}
-```
+When the connector hears a message on an advertised topic it will look that up in the reference table and find out which functions it needs to invoke. Functions are invoked only once and there is no re-try mechanism. The result is printed to the logs of the Kafka connector process.
 
-This causes the `"func_echoit"` function to be triggered synchronously with the data `"echo this message"`.
+The cache or list of functions <-> topics is refreshed on a periodic basis.
 
-* The HTTP response from the function is written to the logs of the `connector` service.
+## Try it out
 
-Todo:
-- [] Write function response back to a separate topic or Callback-URL
+This sample is setup for use on Swarm, but the application code will also work on Kubernetes by using the setup/kubernetes.yml file.
 
-### Development
+Usage for Swarm:
 
-Build the connector image:
+* Deploy this sample using ./build.sh
+* Deploy or update a function so it has a label of `topic=faas-request` or some other topic
 
-```
-./build.sh
-```
+As an example:
 
-Deploy the Kafka stack and the connector
-
-```
-(cd setup && docker service rm kafka_connector ; docker stack deploy kafka -c setup.yml)
+```shell
+$ faas store deploy figlet --label topic="faas-request"
 ```
 
-> Note: If the broker has a different name from `kafka` you can pass the `broker_host` environmental variable. This exclude the port.
+The function can advertise more than one topic by using a comma-separated list i.e. `topic=topic1,topic2,topic3`
 
-Trigger a function via the topic "faas-request"
+* Publish some messages to the topic in question i.e. `faas-request`
+
+Instructions are below for publishing messages
+
+* Watch the logs of the kafka-connector
+
+## Trigger a function via a topic with `exec`
+
+You can use the kafka container to send a message to the topic.
 
 ```
 SERVICE_NAME=kafka_kafka
@@ -44,17 +45,46 @@ TASK_ID=$(docker service ps --filter 'desired-state=running' $SERVICE_NAME -q)
 CONTAINER_ID=$(docker inspect --format '{{ .Status.ContainerStatus.ContainerID }}' $TASK_ID)
 docker exec -it $CONTAINER_ID kafka-console-producer --broker-list kafka:9092 --topic faas-request
 
-{"name": "func_echoit", "data": "test"}
+hello world
 ```
 
-Grab logs:
+## Generate load on the topic
+
+You can use the sample application in the producer folder to generate load for a topic.
+
+Make sure you have some functions advertising an interest in that topic so that they receive the data.
+
+> Note: the producer *must* run inside the Kubernetes or Swarm cluster in order to be able to access the broker(s).
+
+## Monitor the results
+
+Once you have generated some requests or start a load-test you can watch the function invocation rate increasing in Prometheus or watch the logs of the container.
+
+### Prometheus
+
+You can open the Prometheus metrics or Grafana dashboard for OpenFaaS to see the functions being invoked.
+
+### Watch the logs
 
 ```
 docker service logs kafka_connector -f
-kafka_connector.1.93e5xd7bk47h@moby    | Topics
-kafka_connector.1.93e5xd7bk47h@moby    | [echo faas-request __consumer_offsets] <nil>
-kafka_connector.1.93e5xd7bk47h@moby    | Rebalanced: &{Type:rebalance start Claimed:map[] Released:map[] Current:map[]}
-kafka_connector.1.93e5xd7bk47h@moby    | Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Current:map[faas-request:[0]]}
-kafka_connector.1.93e5xd7bk47h@moby    | 2017/11/14 18:30:48 faas-request to function: func_echoit
-kafka_connector.1.93e5xd7bk47h@moby    | [#5] Received on [faas-request,0]: '{"name": "func_echoit", "data": "test"}'
+
+Topics
+[__consumer_offsets faas-request] <nil>
+2018/03/24 12:42:58 Binding to topics: [faas-request]
+Rebalanced: &{Type:rebalance start Claimed:map[] Released:map[] Current:map[]}
+Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Current:map[faas-request:[0]]}
+
+2018/03/24 17:04:40 Syncing topic map
+[#53694] Received on [faas-request,0]: 'Test the function.'
+2018/03/24 17:04:41 Invoke function: figlet
+2018/03/24 17:04:42 Response [200] from figlet  
+|_   _|__  ___| |_  | |_| |__   ___   / _|_   _ _ __   ___| |_(_) ___  _ __    
+  | |/ _ \/ __| __| | __| '_ \ / _ \ | |_| | | | '_ \ / __| __| |/ _ \| '_ \   
+  | |  __/\__ \ |_  | |_| | | |  __/ |  _| |_| | | | | (__| |_| | (_) | | | |_ 
+  |_|\___||___/\__|  \__|_| |_|\___| |_|  \__,_|_| |_|\___|\__|_|\___/|_| |_(_)
+                  
 ```
+
+
+> Note: If the broker has a different name from `kafka` you can pass the `broker_host` environmental variable. This exclude the port.
