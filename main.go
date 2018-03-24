@@ -263,11 +263,6 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 
 }
 
-type InvocationRequest struct {
-	Name string `json:"name"`
-	Data string `json:"data"`
-}
-
 func makeClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
