@@ -88,3 +88,13 @@ Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Cur
 
 
 > Note: If the broker has a different name from `kafka` you can pass the `broker_host` environmental variable. This exclude the port.
+
+## Configuration
+
+| env_var               | description                                                 |
+| --------------------- |----------------------------------------------------------   |
+| upstream_timeout      | Go duration - maximum timeout for upstream function call    |
+| rebuild_interval      | Go duration - interval for rebuilding function to topic map |
+| topics                | Topics to which the connector will bind                     |
+| gateway_url           | The URL for the API gateway i.e. http://gateway:8080        |
+| broker_host           | Default is `kafka`                                          |

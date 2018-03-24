@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,12 +10,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
-	"github.com/openfaas/faas/gateway/requests"
+	"github.com/openfaas-incubator/kafka-connector/types"
 )
 
 // Sarama currently cannot support latest kafka protocol version 0_11_
@@ -28,73 +26,18 @@ type connectorConfig struct {
 	gatewayURL      string
 	upstreamTimeout time.Duration
 	topics          []string
-}
-
-type TopicMap struct {
-	lookup *map[string][]string
-	lock   sync.Mutex
-}
-
-func (t *TopicMap) Match(topicName string) []string {
-	t.lock.Lock()
-
-	var values []string
-
-	for key, val := range *t.lookup {
-		if key == topicName {
-			values = val
-			break
-		}
-	}
-
-	t.lock.Unlock()
-
-	return values
-}
-
-func (t *TopicMap) Sync(updated *map[string][]string) {
-	t.lock.Lock()
-
-	t.lookup = updated
-
-	t.lock.Unlock()
+	printResponse   bool
+	rebuildInterval time.Duration
+	broker          string
 }
 
 func main() {
 	var client sarama.Client
 	var err error
 
-	broker := "kafka"
-	if val, exists := os.LookupEnv("broker_host"); exists {
-		broker = val
-	}
+	config := buildConnectorConfig()
 
-	topics := []string{}
-	if val, exists := os.LookupEnv("topics"); exists {
-		for _, topic := range strings.Split(val, ",") {
-			if len(topic) > 0 {
-				topics = append(topics, topic)
-			}
-		}
-	}
-	if len(topics) == 0 {
-		log.Fatal(`Provide a list of topics i.e. topics="payment_published,slack_joined"`)
-	}
-
-	gatewayURL := "http://gateway:8080"
-	if val, exists := os.LookupEnv("gateway_url"); exists {
-		gatewayURL = val
-	}
-
-	upstreamTimeout := time.Second * 30
-
-	config := connectorConfig{
-		gatewayURL:      gatewayURL,
-		upstreamTimeout: upstreamTimeout,
-		topics:          topics,
-	}
-
-	brokers := []string{broker + ":9092"}
+	brokers := []string{config.broker + ":9092"}
 	for {
 
 		client, err = sarama.NewClient(brokers, nil)
@@ -104,61 +47,12 @@ func main() {
 		if client != nil {
 			client.Close()
 		}
-		fmt.Println("Wait for brokers ("+broker+") to come up.. ", brokers)
+		fmt.Println("Wait for brokers ("+config.broker+") to come up.. ", brokers)
 
 		time.Sleep(1 * time.Second)
 	}
 
-	fmt.Println("Topics")
-	fmt.Println(client.Topics())
-
 	makeConsumer(client, brokers, config)
-}
-
-type ServiceListBroker struct {
-	gatewayURL string
-	client     *http.Client
-}
-
-func (s *ServiceListBroker) Build() (map[string][]string, error) {
-	var err error
-	serviceMap := make(map[string][]string)
-
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/system/functions", s.gatewayURL), nil)
-	res, reqErr := s.client.Do(req)
-
-	if reqErr != nil {
-		return serviceMap, reqErr
-	}
-
-	if res.Body != nil {
-		defer res.Body.Close()
-	}
-
-	bytesOut, _ := ioutil.ReadAll(res.Body)
-
-	functions := []requests.Function{}
-	marshalErr := json.Unmarshal(bytesOut, &functions)
-
-	if marshalErr != nil {
-		return serviceMap, marshalErr
-	}
-
-	for _, function := range functions {
-		if *function.Labels != nil {
-			labels := *function.Labels
-
-			if topic, pass := labels["topic"]; pass {
-
-				if serviceMap[topic] == nil {
-					serviceMap[topic] = []string{}
-				}
-				serviceMap[topic] = append(serviceMap[topic], function.Name)
-			}
-		}
-	}
-
-	return serviceMap, err
 }
 
 func makeConsumer(client sarama.Client, brokers []string, config connectorConfig) {
@@ -183,16 +77,13 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 
 	defer consumer.Close()
 
-	c := makeClient(time.Second * 8)
+	c := makeClient(config.upstreamTimeout)
 
-	lookup := make(map[string][]string)
-	topicMap := TopicMap{
-		lookup: &lookup,
-	}
+	topicMap := types.NewTopicMap()
 
-	listBroker := ServiceListBroker{
-		gatewayURL: config.gatewayURL,
-		client:     makeClient(time.Second * 3),
+	lookupBuilder := types.FunctionLookupBuilder{
+		GatewayURL: config.gatewayURL,
+		Client:     makeClient(config.rebuildInterval),
 	}
 
 	ticker := time.NewTicker(time.Second * 3)
@@ -200,7 +91,7 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 	go func() {
 		for {
 			<-ticker.C
-			lookups, err := listBroker.Build()
+			lookups, err := lookupBuilder.Build()
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -233,9 +124,13 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 					if readErr != nil {
 						log.Printf("Error reading body")
 					}
-					stringOutput := string(bytesOut)
 
-					log.Printf("Response [%d] from %s %s", res.StatusCode, matchedFunction, stringOutput)
+					stringOutput := string(bytesOut)
+					if config.printResponse {
+						log.Printf("Response [%d] from %s %s", res.StatusCode, matchedFunction, stringOutput)
+					} else {
+						log.Printf("Response [%d] from %s", res.StatusCode, matchedFunction)
+					}
 				}
 
 			}
@@ -260,7 +155,6 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 			fmt.Printf("Rebalanced: %+v\n", ntf)
 		}
 	}
-
 }
 
 func makeClient(timeout time.Duration) *http.Client {
@@ -273,9 +167,57 @@ func makeClient(timeout time.Duration) *http.Client {
 			}).DialContext,
 			MaxIdleConns:        100,
 			MaxIdleConnsPerHost: 100,
-			// DisableKeepAlives:     false,
-			IdleConnTimeout: 120 * time.Millisecond,
-			// ExpectContinueTimeout: 1500 * time.Millisecond,
+			IdleConnTimeout:     120 * time.Millisecond,
 		},
+	}
+}
+
+func buildConnectorConfig() connectorConfig {
+
+	broker := "kafka"
+	if val, exists := os.LookupEnv("broker_host"); exists {
+		broker = val
+	}
+
+	topics := []string{}
+	if val, exists := os.LookupEnv("topics"); exists {
+		for _, topic := range strings.Split(val, ",") {
+			if len(topic) > 0 {
+				topics = append(topics, topic)
+			}
+		}
+	}
+	if len(topics) == 0 {
+		log.Fatal(`Provide a list of topics i.e. topics="payment_published,slack_joined"`)
+	}
+
+	gatewayURL := "http://gateway:8080"
+	if val, exists := os.LookupEnv("gateway_url"); exists {
+		gatewayURL = val
+	}
+
+	upstreamTimeout := time.Second * 30
+	rebuildInterval := time.Second * 3
+
+	if val, exists := os.LookupEnv("upstream_timeout"); exists {
+		parsedVal, err := time.ParseDuration(val)
+		if err == nil {
+			upstreamTimeout = parsedVal
+		}
+	}
+
+	if val, exists := os.LookupEnv("rebuild_interval"); exists {
+		parsedVal, err := time.ParseDuration(val)
+		if err == nil {
+			rebuildInterval = parsedVal
+		}
+	}
+
+	return connectorConfig{
+		gatewayURL:      gatewayURL,
+		upstreamTimeout: upstreamTimeout,
+		topics:          topics,
+		rebuildInterval: rebuildInterval,
+		broker:          broker,
 	}
 }
