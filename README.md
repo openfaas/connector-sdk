@@ -93,8 +93,10 @@ Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Cur
 
 | env_var               | description                                                 |
 | --------------------- |----------------------------------------------------------   |
-| upstream_timeout      | Go duration - maximum timeout for upstream function call    |
-| rebuild_interval      | Go duration - interval for rebuilding function to topic map |
-| topics                | Topics to which the connector will bind                     |
-| gateway_url           | The URL for the API gateway i.e. http://gateway:8080        |
-| broker_host           | Default is `kafka`                                          |
+| `upstream_timeout`      | Go duration - maximum timeout for upstream function call    |
+| `rebuild_interval`      | Go duration - interval for rebuilding function to topic map |
+| `topics`                | Topics to which the connector will bind                     |
+| `gateway_url`           | The URL for the API gateway i.e. http://gateway:8080        |
+| `broker_host`           | Default is `kafka`                                          |
+| `print_response`        | Default is `false` - this will output the response of calling a function in the logs |
+

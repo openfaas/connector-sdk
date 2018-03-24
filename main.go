@@ -20,7 +20,7 @@ import (
 	"github.com/openfaas-incubator/kafka-connector/types"
 )
 
-// Sarama currently cannot support latest kafka protocol version 0_11_
+// Sarama currently cannot support latest kafka protocol version V0_10_2_0
 var (
 	SARAMA_KAFKA_PROTO_VER = sarama.V0_10_2_0
 )
@@ -40,6 +40,16 @@ func main() {
 
 	config := buildConnectorConfig()
 
+	topicMap := types.NewTopicMap()
+
+	lookupBuilder := types.FunctionLookupBuilder{
+		GatewayURL: config.gatewayURL,
+		Client:     makeClient(config.upstreamTimeout),
+	}
+
+	ticker := time.NewTicker(config.rebuildInterval)
+	go synchronizeLookups(ticker, &lookupBuilder, &topicMap)
+
 	brokers := []string{config.broker + ":9092"}
 	for {
 
@@ -55,10 +65,26 @@ func main() {
 		time.Sleep(1 * time.Second)
 	}
 
-	makeConsumer(client, brokers, config)
+	makeConsumer(client, brokers, config, &topicMap)
 }
 
-func makeConsumer(client sarama.Client, brokers []string, config connectorConfig) {
+func synchronizeLookups(ticker *time.Ticker,
+	lookupBuilder *types.FunctionLookupBuilder,
+	topicMap *types.TopicMap) {
+
+	for {
+		<-ticker.C
+		lookups, err := lookupBuilder.Build()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		log.Println("Syncing topic map")
+		topicMap.Sync(&lookups)
+	}
+}
+
+func makeConsumer(client sarama.Client, brokers []string, config connectorConfig, topicMap *types.TopicMap) {
 	//setup consumer
 	cConfig := cluster.NewConfig()
 	cConfig.Version = SARAMA_KAFKA_PROTO_VER
@@ -80,28 +106,31 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 
 	defer consumer.Close()
 
-	c := makeClient(config.upstreamTimeout)
+	mcb := makeMessageHandler(topicMap, config)
 
-	topicMap := types.NewTopicMap()
+	num := 0
 
-	lookupBuilder := types.FunctionLookupBuilder{
-		GatewayURL: config.gatewayURL,
-		Client:     makeClient(config.rebuildInterval),
-	}
+	for {
+		select {
+		case msg, ok := <-consumer.Messages():
+			if ok {
+				num = (num + 1) % math.MaxInt32
+				fmt.Printf("[#%d] Received on [%v,%v]: '%s'\n", num, msg.Topic, msg.Partition, string(msg.Value))
 
-	ticker := time.NewTicker(time.Second * 3)
-
-	go func() {
-		for {
-			<-ticker.C
-			lookups, err := lookupBuilder.Build()
-			if err != nil {
-				log.Fatalln(err)
+				mcb(msg)
+				consumer.MarkOffset(msg, "") // mark message as processed
 			}
-			log.Println("Syncing topic map")
-			topicMap.Sync(&lookups)
+		case err = <-consumer.Errors():
+			fmt.Println("consumer error: ", err)
+		case ntf := <-consumer.Notifications():
+			fmt.Printf("Rebalanced: %+v\n", ntf)
 		}
-	}()
+	}
+}
+
+func makeMessageHandler(topicMap *types.TopicMap, config connectorConfig) func(msg *sarama.ConsumerMessage) {
+
+	c := makeClient(config.upstreamTimeout)
 
 	mcb := func(msg *sarama.ConsumerMessage) {
 		if len(msg.Value) > 0 {
@@ -139,25 +168,7 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 			}
 		}
 	}
-
-	num := 0
-
-	for {
-		select {
-		case msg, ok := <-consumer.Messages():
-			if ok {
-				num = (num + 1) % math.MaxInt32
-				fmt.Printf("[#%d] Received on [%v,%v]: '%s'\n", num, msg.Topic, msg.Partition, string(msg.Value))
-
-				mcb(msg)
-				consumer.MarkOffset(msg, "") // mark message as processed
-			}
-		case err = <-consumer.Errors():
-			fmt.Println("consumer error: ", err)
-		case ntf := <-consumer.Notifications():
-			fmt.Printf("Rebalanced: %+v\n", ntf)
-		}
-	}
+	return mcb
 }
 
 func makeClient(timeout time.Duration) *http.Client {
@@ -216,11 +227,17 @@ func buildConnectorConfig() connectorConfig {
 		}
 	}
 
+	printResponse := false
+	if val, exists := os.LookupEnv("print_response"); exists {
+		printResponse = (val == "1" || val == "true")
+	}
+
 	return connectorConfig{
 		gatewayURL:      gatewayURL,
 		upstreamTimeout: upstreamTimeout,
 		topics:          topics,
 		rebuildInterval: rebuildInterval,
 		broker:          broker,
+		printResponse:   printResponse,
 	}
 }
