@@ -1,6 +1,13 @@
 ## Kafka-connector
 
-This is a Proof-of-Concept for connecting a Kakfa topic to the OpenFaaS API Gateway. 
+This is a Proof-of-Concept for connecting a number of Kakfa topics to OpenFaaS functions via the API Gateway. 
+
+Goals:
+
+* Allow functions to subscribe to topics
+* Ingest data from Kafka
+* Work with black-box knowledge of OpenFaaS
+* Formulate and validate a generic "connector-pattern" to be used for various event sources like Kafka, AWS SNS, RabbitMQ etc
 
 ## Conceptual design
 
