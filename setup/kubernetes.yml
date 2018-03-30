@@ -109,7 +109,7 @@ spec:
     spec:
       containers:
       - name: kafka
-        image: alexellis2/kafka-connector:tester
+        image: alexellis2/kafka-connector:0.2.0-rc1
         env:
           - name: gateway_url
             value: "http://192.168.0.35:8080"

@@ -1,16 +1,13 @@
-// Copyright (c) OpenFaaS Project 2017. All rights reserved.
+// Copyright (c) Alex Ellis 2017. All rights reserved.
+// Copyright (c) OpenFaaS Project 2018. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
-	"net"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -21,9 +18,7 @@ import (
 )
 
 // Sarama currently cannot support latest kafka protocol version V0_10_2_0
-var (
-	SARAMA_KAFKA_PROTO_VER = sarama.V0_10_2_0
-)
+var saramaKafkaProtocolVersion = sarama.V0_10_2_0
 
 type connectorConfig struct {
 	gatewayURL      string
@@ -44,7 +39,7 @@ func main() {
 
 	lookupBuilder := types.FunctionLookupBuilder{
 		GatewayURL: config.gatewayURL,
-		Client:     makeClient(config.upstreamTimeout),
+		Client:     types.MakeClient(config.upstreamTimeout),
 	}
 
 	ticker := time.NewTicker(config.rebuildInterval)
@@ -87,7 +82,7 @@ func synchronizeLookups(ticker *time.Ticker,
 func makeConsumer(client sarama.Client, brokers []string, config connectorConfig, topicMap *types.TopicMap) {
 	//setup consumer
 	cConfig := cluster.NewConfig()
-	cConfig.Version = SARAMA_KAFKA_PROTO_VER
+	cConfig.Version = saramaKafkaProtocolVersion
 	cConfig.Consumer.Return.Errors = true
 	cConfig.Consumer.Offsets.Initial = sarama.OffsetNewest //OffsetOldest
 	cConfig.Group.Return.Notifications = true
@@ -115,75 +110,40 @@ func makeConsumer(client sarama.Client, brokers []string, config connectorConfig
 		case msg, ok := <-consumer.Messages():
 			if ok {
 				num = (num + 1) % math.MaxInt32
-				fmt.Printf("[#%d] Received on [%v,%v]: '%s'\n", num, msg.Topic, msg.Partition, string(msg.Value))
+				fmt.Printf("[#%d] Received on [%v,%v]: '%s'\n",
+					num,
+					msg.Topic,
+					msg.Partition,
+					string(msg.Value))
 
 				mcb(msg)
+
 				consumer.MarkOffset(msg, "") // mark message as processed
 			}
 		case err = <-consumer.Errors():
+
 			fmt.Println("consumer error: ", err)
+
 		case ntf := <-consumer.Notifications():
+
 			fmt.Printf("Rebalanced: %+v\n", ntf)
+
 		}
 	}
 }
 
 func makeMessageHandler(topicMap *types.TopicMap, config connectorConfig) func(msg *sarama.ConsumerMessage) {
 
-	c := makeClient(config.upstreamTimeout)
+	invoker := types.Invoker{
+		PrintResponse: config.printResponse,
+		Client:        types.MakeClient(config.upstreamTimeout),
+		GatewayURL:    config.gatewayURL,
+	}
 
 	mcb := func(msg *sarama.ConsumerMessage) {
-		if len(msg.Value) > 0 {
-
-			matchedFunctions := topicMap.Match(msg.Topic)
-			for _, matchedFunction := range matchedFunctions {
-
-				log.Printf("Invoke function: %s", matchedFunction)
-
-				reader := bytes.NewReader([]byte(msg.Value))
-				httpReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/function/%s", config.gatewayURL, matchedFunction), reader)
-				defer httpReq.Body.Close()
-
-				res, doErr := c.Do(httpReq)
-				if doErr != nil {
-					log.Println("Invalid response:", doErr)
-					return
-				}
-				if res.Body != nil {
-					defer res.Body.Close()
-
-					bytesOut, readErr := ioutil.ReadAll(res.Body)
-					if readErr != nil {
-						log.Printf("Error reading body")
-					}
-
-					stringOutput := string(bytesOut)
-					if config.printResponse {
-						log.Printf("Response [%d] from %s %s", res.StatusCode, matchedFunction, stringOutput)
-					} else {
-						log.Printf("Response [%d] from %s", res.StatusCode, matchedFunction)
-					}
-				}
-
-			}
-		}
+		invoker.Invoke(topicMap, msg.Topic, &msg.Value)
 	}
 	return mcb
-}
-
-func makeClient(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout:   timeout,
-				KeepAlive: 10 * time.Second,
-			}).DialContext,
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 100,
-			IdleConnTimeout:     120 * time.Millisecond,
-		},
-	}
 }
 
 func buildConnectorConfig() connectorConfig {
