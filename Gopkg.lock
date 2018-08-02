@@ -46,8 +46,8 @@
 [[projects]]
   name = "github.com/openfaas/faas"
   packages = ["gateway/requests"]
-  revision = "ae1279a553305da234a1775a687984c1fee05591"
-  version = "0.7.7"
+  revision = "75f05ca38efe280e4ec6b36c581e5f0b9e31dcc3"
+  version = "0.8.9"
 
 [[projects]]
   name = "github.com/pierrec/lz4"

@@ -20,7 +20,10 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
-
 [[constraint]]
   name = "github.com/bsm/sarama-cluster"
   version = "2.1.10"
+
+[prune]
+   go-tests = true
+   unused-packages = true

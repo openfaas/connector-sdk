@@ -45,10 +45,10 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	}
 
 	for _, function := range functions {
-		if *function.Labels != nil {
-			labels := *function.Labels
+		if function.Annotations != nil {
+			annotations := *function.Annotations
 
-			if topic, pass := labels["topic"]; pass {
+			if topic, pass := annotations["topic"]; pass {
 
 				if serviceMap[topic] == nil {
 					serviceMap[topic] = []string{}

@@ -17,12 +17,12 @@ func TestBuildSingleMatchingFunction(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		functions := []requests.Function{}
-		labelMap := make(map[string]string)
-		labelMap["topic"] = "topic1"
+		annotationMap := make(map[string]string)
+		annotationMap["topic"] = "topic1"
 
 		functions = append(functions, requests.Function{
-			Name:   "echo",
-			Labels: &labelMap,
+			Name:        "echo",
+			Annotations: &annotationMap,
 		})
 		bytesOut, _ := json.Marshal(functions)
 		w.Write(bytesOut)
