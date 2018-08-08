@@ -26,12 +26,12 @@ This sample is setup for use on Swarm, but the application code will also work o
 Usage for Swarm:
 
 * Deploy this sample using ./build.sh
-* Deploy or update a function so it has a label of `topic=faas-request` or some other topic
+* Deploy or update a function so it has an annotation `topic=faas-request` or some other topic
 
 As an example:
 
 ```shell
-$ faas store deploy figlet --label topic="faas-request"
+$ faas store deploy figlet --annotation topic="faas-request"
 ```
 
 The function can advertise more than one topic by using a comma-separated list i.e. `topic=topic1,topic2,topic3`
@@ -95,6 +95,76 @@ Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Cur
 
 
 > Note: If the broker has a different name from `kafka` you can pass the `broker_host` environmental variable. This exclude the port.
+
+## Run on Kubernetes
+
+The following instructions show how to run `kafka-connector` on Kubernetes.
+
+Deploy a function with a `topic` annotation:
+
+```bash
+$ faas store deploy figlet --annotation topic="faas-request" --gateway <faas-netes-gateway-url>
+```
+
+Deploy Kafka:
+
+You can run the zookeeper, kafka-broker and kafka-connector pods with
+```
+kubectl apply -f setup/kubernetes.yml
+```
+
+Then use the broker to send messages to the topic:
+
+```bash
+BROKER=$(kubectl get pods -l component=kafka-broker -o name|cut -d'/' -f2)
+kubectl exec -t -i $BROKER -- /opt/kafka_2.12-0.11.0.1/bin/kafka-console-producer.sh --broker-list kafka:9092 --topic faas-request
+
+hello world
+```
+Once you have connected, each new line will be a message published.
+
+If you have an error
+```
+error: unable to upgrade connection: container not found ("kafka")
+```
+just wait and retry.
+
+You can verify the proper path of the publisher script by getting the shell of the running broker:
+```
+$kubectl exec -t -i $BROKER -- sh 
+/ # find | grep producer
+
+./opt/kafka_2.12-0.11.0.1/config/producer.properties
+./opt/kafka_2.12-0.11.0.1/bin/kafka-verifiable-producer.sh
+./opt/kafka_2.12-0.11.0.1/bin/kafka-producer-perf-test.sh
+./opt/kafka_2.12-0.11.0.1/bin/kafka-console-producer.sh
+```
+
+Now check the connector logs to see the figlet function was invoked:
+
+```bash
+CONNECTOR=$(kubectl get pods -o name|grep kafka-connector|cut -d'/' -f2)
+tail -f | kubectl logs $CONNECTOR
+
+2018/08/08 16:54:35 Binding to topics: [faas-request]
+2018/08/08 16:54:38 Syncing topic map
+Rebalanced: &{Type:rebalance start Claimed:map[] Released:map[] Current:map[]}
+Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Current:map[faas-request:[0]]}
+
+2018/08/08 16:54:41 Syncing topic map
+2018/08/08 16:54:44 Syncing topic map
+2018/08/08 16:54:47 Syncing topic map
+
+[#53753] Received on [faas-request,0]: 'hello world.'
+2018/08/08 16:57:41 Invoke function: figlet
+2018/08/08 16:57:42 Response [200] from figlet  
+ _          _ _                            _     _ 
+| |__   ___| | | ___   __      _____  _ __| | __| |
+| '_ \ / _ \ | |/ _ \  \ \ /\ / / _ \| '__| |/ _` |
+| | | |  __/ | | (_) |  \ V  V / (_) | |  | | (_| |
+|_| |_|\___|_|_|\___/    \_/\_/ \___/|_|  |_|\__,_|
+                                                   
+```
 
 ## Configuration
 
