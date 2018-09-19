@@ -22,7 +22,7 @@ services:
       - streaming
 
   connector:
-    image: alexellis2/kafka-connector:latest
+    image: alexellis2/kafka-connector:0.2.0
     hostname: kafka-connector
     environment:
       gateway_url: http://gateway:8080
