@@ -1,12 +1,12 @@
 ## Kafka-connector
 
-This is a Proof-of-Concept for connecting a number of Kakfa topics to OpenFaaS functions via the API Gateway. 
+The Kafka connector connects OpenFaaS functions to Kafka topics.
 
 Goals:
 
-* Allow functions to subscribe to topics
-* Ingest data from Kafka
-* Work with black-box knowledge of OpenFaaS
+* Allow functions to subscribe to Kafka topics
+* Ingest data from Kafka and execute functions
+* Work with the OpenFaaS REST API / Gateway
 * Formulate and validate a generic "connector-pattern" to be used for various event sources like Kafka, AWS SNS, RabbitMQ etc
 
 ## Conceptual design
@@ -21,11 +21,14 @@ The cache or list of functions <-> topics is refreshed on a periodic basis.
 
 ## Try it out
 
-This sample is setup for use on Swarm, but the application code will also work on Kubernetes by using the setup/kubernetes.yml file.
+### Deploy Swarm
 
-Usage for Swarm:
+Deploy the stack which contains Kafka and the connector:
 
-* Deploy this sample using ./build.sh
+```bash
+docker stack deploy kafka -c connector-swarm.yml
+```
+
 * Deploy or update a function so it has an annotation `topic=faas-request` or some other topic
 
 As an example:
@@ -96,7 +99,7 @@ Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Cur
 
 > Note: If the broker has a different name from `kafka` you can pass the `broker_host` environmental variable. This exclude the port.
 
-## Run on Kubernetes
+### Deploy on Kubernetes
 
 The following instructions show how to run `kafka-connector` on Kubernetes.
 
@@ -108,9 +111,16 @@ $ faas store deploy figlet --annotation topic="faas-request" --gateway <faas-net
 
 Deploy Kafka:
 
-You can run the zookeeper, kafka-broker and kafka-connector pods with
+You can run the zookeeper, kafka-broker and kafka-connector pods with:
+
+```bash
+kubectl apply -f ./yaml/kubernetes/
 ```
-kubectl apply -f setup/kubernetes.yml
+
+If you already have Kafka then update `./yaml/kubernetes/connector-dep.yml` with your Kafka broker address and then deploy only that file:
+
+```bash
+kubectl apply -f ./yaml/kubernetes/connector-dep.yml
 ```
 
 Then use the broker to send messages to the topic:
@@ -168,12 +178,13 @@ Rebalanced: &{Type:rebalance OK Claimed:map[faas-request:[0]] Released:map[] Cur
 
 ## Configuration
 
+This configuration can be set in the YAML files for Kubernetes or Swarm.
+
 | env_var               | description                                                 |
 | --------------------- |----------------------------------------------------------   |
 | `upstream_timeout`      | Go duration - maximum timeout for upstream function call    |
 | `rebuild_interval`      | Go duration - interval for rebuilding function to topic map |
 | `topics`                | Topics to which the connector will bind                     |
-| `gateway_url`           | The URL for the API gateway i.e. http://gateway:8080        |
+| `gateway_url`           | The URL for the API gateway i.e. http://gateway:8080 or http://gateway.openfaas:8080 for Kubernetes       |
 | `broker_host`           | Default is `kafka`                                          |
-| `print_response`        | Default is `false` - this will output the response of calling a function in the logs |
-
+| `print_response`        | Default is `true` - this will output the response of calling a function in the logs |

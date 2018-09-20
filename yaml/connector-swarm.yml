@@ -27,6 +27,7 @@ services:
     environment:
       gateway_url: http://gateway:8080
       topics: "faas-request,"
+      print_reponse: "true"
     networks:
       - streaming
       - func_functions
