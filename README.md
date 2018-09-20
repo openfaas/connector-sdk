@@ -26,7 +26,7 @@ The cache or list of functions <-> topics is refreshed on a periodic basis.
 Deploy the stack which contains Kafka and the connector:
 
 ```bash
-docker stack deploy kafka -c connector-swarm.yml
+docker stack deploy kafka -c ./yaml/connector-swarm.yml
 ```
 
 * Deploy or update a function so it has an annotation `topic=faas-request` or some other topic
