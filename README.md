@@ -126,7 +126,7 @@ kubectl apply -f ./yaml/kubernetes/connector-dep.yml
 Then use the broker to send messages to the topic:
 
 ```bash
-BROKER=$(kubectl get pods -l component=kafka-broker -o name|cut -d'/' -f2)
+BROKER=$(kubectl get pods -n openfaas -l component=kafka-broker -o name|cut -d'/' -f2)
 kubectl exec -n openfaas -t -i $BROKER -- /opt/kafka_2.12-0.11.0.1/bin/kafka-console-producer.sh --broker-list kafka:9092 --topic faas-request
 
 hello world
