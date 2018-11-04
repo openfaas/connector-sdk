@@ -44,4 +44,8 @@ networks:
   func_functions:
     external: true
 
-
+secrets:
+    basic-auth-user:
+        external: true
+    basic-auth-password:
+        external: true
