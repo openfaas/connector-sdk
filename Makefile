@@ -2,6 +2,6 @@ TAG?=latest
 .PHONY: build
 
 build:
-	docker build -t alexellis2/kafka-connector:$(TAG) .
+	docker build -t functions/kafka-connector:$(TAG) .
 push:
-	docker push alexellis2/kafka-connector:$(TAG)
+	docker push functions/kafka-connector:$(TAG)

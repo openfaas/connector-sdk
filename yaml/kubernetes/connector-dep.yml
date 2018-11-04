@@ -6,6 +6,7 @@ metadata:
     app: kafka
     component: kafka-connector
   name: kafka-connector
+  namespace: openfaas
 spec:
   replicas: 1
   template:
@@ -16,7 +17,7 @@ spec:
     spec:
       containers:
       - name: kafka
-        image: alexellis2/kafka-connector:0.2.1
+        image: functions/kafka-connector:0.3.0
         env:
           - name: gateway_url
             value: "http://gateway.openfaas:8080"
@@ -24,3 +25,15 @@ spec:
             value: "faas-request,"
           - name: print_response
             value: "true"
+          - name: basic_auth
+            value: "true"
+          - name: secret_mount_path
+            value: "/var/secrets/"
+        volumeMounts:
+            - name: auth
+              readOnly: true
+              mountPath: "/var/secrets/"
+      volumes:
+      - name: auth
+        secret:
+          secretName: basic-auth

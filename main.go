@@ -15,6 +15,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
 	"github.com/openfaas-incubator/kafka-connector/types"
+	auth "github.com/openfaas/faas-provider/auth"
 )
 
 // Sarama currently cannot support latest kafka protocol version V0_10_2_0
@@ -33,13 +34,33 @@ func main() {
 	var client sarama.Client
 	var err error
 
+	var credentials *auth.BasicAuthCredentials
+
+	if val, ok := os.LookupEnv("basic_auth"); ok && len(val) > 0 {
+		if val == "true" || val == "1" {
+
+			reader := auth.ReadBasicAuthFromDisk{}
+
+			if val, ok := os.LookupEnv("secret_mount_path"); ok && len(val) > 0 {
+				reader.SecretMountPath = os.Getenv("secret_mount_path")
+			}
+
+			res, err := reader.Read()
+			if err != nil {
+				panic(err)
+			}
+			credentials = res
+		}
+	}
+
 	config := buildConnectorConfig()
 
 	topicMap := types.NewTopicMap()
 
 	lookupBuilder := types.FunctionLookupBuilder{
-		GatewayURL: config.gatewayURL,
-		Client:     types.MakeClient(config.upstreamTimeout),
+		GatewayURL:  config.gatewayURL,
+		Client:      types.MakeClient(config.upstreamTimeout),
+		Credentials: credentials,
 	}
 
 	ticker := time.NewTicker(config.rebuildInterval)

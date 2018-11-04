@@ -22,12 +22,17 @@ services:
       - streaming
 
   connector:
-    image: alexellis2/kafka-connector:0.2.1
+    image: functions/kafka-connector:0.3.0
     hostname: kafka-connector
     environment:
       gateway_url: http://gateway:8080
       topics: "faas-request,"
       print_reponse: "true"
+      basic_auth: "true"
+      secret_mount_path: "/run/secrets/"
+    secrets:
+      - basic-auth-password
+      - basic-auth-user
     networks:
       - streaming
       - func_functions

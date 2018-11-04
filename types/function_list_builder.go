@@ -9,13 +9,15 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/openfaas/faas-provider/auth"
 	"github.com/openfaas/faas/gateway/requests"
 )
 
 // FunctionLookupBuilder builds a list of OpenFaaS functions
 type FunctionLookupBuilder struct {
-	GatewayURL string
-	Client     *http.Client
+	GatewayURL  string
+	Client      *http.Client
+	Credentials *auth.BasicAuthCredentials
 }
 
 // Build compiles a map of topic names and functions that have
@@ -25,6 +27,11 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	serviceMap := make(map[string][]string)
 
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/system/functions", s.GatewayURL), nil)
+
+	if s.Credentials != nil {
+		req.SetBasicAuth(s.Credentials.User, s.Credentials.Password)
+	}
+
 	res, reqErr := s.Client.Do(req)
 
 	if reqErr != nil {

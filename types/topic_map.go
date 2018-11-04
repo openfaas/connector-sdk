@@ -20,6 +20,7 @@ type TopicMap struct {
 
 func (t *TopicMap) Match(topicName string) []string {
 	t.lock.Lock()
+	defer t.lock.Unlock()
 
 	var values []string
 
@@ -30,15 +31,12 @@ func (t *TopicMap) Match(topicName string) []string {
 		}
 	}
 
-	t.lock.Unlock()
-
 	return values
 }
 
 func (t *TopicMap) Sync(updated *map[string][]string) {
 	t.lock.Lock()
+	defer t.lock.Unlock()
 
 	t.lookup = updated
-
-	t.lock.Unlock()
 }

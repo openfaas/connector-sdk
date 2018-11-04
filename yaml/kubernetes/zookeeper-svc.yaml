@@ -5,6 +5,7 @@ metadata:
   labels:
     app: kafka
     component: zookeeper
+  namespace: openfaas
 spec:
   ports:
   - port: 2181

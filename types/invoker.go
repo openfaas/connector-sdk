@@ -6,9 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
-	"time"
 )
 
 type Invoker struct {
@@ -56,13 +54,18 @@ func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) {
 func invokefunction(c *http.Client, gwURL string, reader io.Reader) (*[]byte, int, error) {
 
 	httpReq, _ := http.NewRequest(http.MethodPost, gwURL, reader)
-	defer httpReq.Body.Close()
+
+	if httpReq.Body != nil {
+		defer httpReq.Body.Close()
+	}
 
 	var body *[]byte
+
 	res, doErr := c.Do(httpReq)
 	if doErr != nil {
 		return nil, http.StatusServiceUnavailable, doErr
 	}
+
 	if res.Body != nil {
 		defer res.Body.Close()
 
@@ -76,19 +79,4 @@ func invokefunction(c *http.Client, gwURL string, reader io.Reader) (*[]byte, in
 	}
 
 	return body, res.StatusCode, doErr
-}
-
-func makeClient(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout:   timeout,
-				KeepAlive: 10 * time.Second,
-			}).DialContext,
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 100,
-			IdleConnTimeout:     120 * time.Millisecond,
-		},
-	}
 }

@@ -127,7 +127,7 @@ Then use the broker to send messages to the topic:
 
 ```bash
 BROKER=$(kubectl get pods -l component=kafka-broker -o name|cut -d'/' -f2)
-kubectl exec -t -i $BROKER -- /opt/kafka_2.12-0.11.0.1/bin/kafka-console-producer.sh --broker-list kafka:9092 --topic faas-request
+kubectl exec -n openfaas -t -i $BROKER -- /opt/kafka_2.12-0.11.0.1/bin/kafka-console-producer.sh --broker-list kafka:9092 --topic faas-request
 
 hello world
 ```
@@ -141,7 +141,7 @@ just wait and retry.
 
 You can verify the proper path of the publisher script by getting the shell of the running broker:
 ```
-$kubectl exec -t -i $BROKER -- sh 
+$ kubectl exec -n openfaas -t -i $BROKER -- sh 
 / # find | grep producer
 
 ./opt/kafka_2.12-0.11.0.1/config/producer.properties
@@ -153,8 +153,8 @@ $kubectl exec -t -i $BROKER -- sh
 Now check the connector logs to see the figlet function was invoked:
 
 ```bash
-CONNECTOR=$(kubectl get pods -o name|grep kafka-connector|cut -d'/' -f2)
-tail -f | kubectl logs $CONNECTOR
+CONNECTOR=$(kubectl get pods -n openfaas -o name|grep kafka-connector|cut -d'/' -f2)
+kubectl logs -n openfaas -f --tail 100 $CONNECTOR
 
 2018/08/08 16:54:35 Binding to topics: [faas-request]
 2018/08/08 16:54:38 Syncing topic map
