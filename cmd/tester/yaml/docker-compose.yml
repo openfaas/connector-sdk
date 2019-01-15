@@ -1,7 +1,7 @@
 version: '3.2'
 services:
   connector:
-    image: 192.168.1.9:5000/connector-sample
+    image: zeerorg/connector-sample
     hostname: sample-connector
     environment:
       gateway_url: http://gateway:8080

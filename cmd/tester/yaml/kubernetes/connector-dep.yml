@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: sample-connector
-        image: 192.168.1.9:5000/connector-sample
+        image: zeerorg/connector-sample
         env:
           - name: gateway_url
             value: "http://gateway.openfaas:8080"
@@ -27,13 +27,13 @@ spec:
             value: "true"
           - name: basic_auth
             value: "false"
-      #     - name: secret_mount_path
-      #       value: "/var/secrets/"
-      #   volumeMounts:
-      #       - name: auth
-      #         readOnly: true
-      #         mountPath: "/var/secrets/"
-      # volumes:
-      # - name: auth
-      #   secret:
-      #     secretName: basic-auth
+          - name: secret_mount_path
+            value: "/var/secrets/"
+        volumeMounts:
+            - name: auth
+              readOnly: true
+              mountPath: "/var/secrets/"
+      volumes:
+      - name: auth
+        secret:
+          secretName: basic-auth
