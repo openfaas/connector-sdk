@@ -1,0 +1,26 @@
+version: '3.2'
+services:
+  connector:
+    image: 192.168.1.9:5000/connector-sample
+    hostname: sample-connector
+    environment:
+      gateway_url: http://gateway:8080
+      topics: "faas-request"
+      print_response: "true"
+      basic_auth: "true"
+      secret_mount_path: "/run/secrets/"
+    secrets:
+      - basic-auth-password
+      - basic-auth-user
+    networks:
+      - func_functions
+
+networks:
+  func_functions:
+    external: true
+
+secrets:
+    basic-auth-user:
+        external: true
+    basic-auth-password:
+        external: true

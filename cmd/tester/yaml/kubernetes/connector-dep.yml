@@ -1,0 +1,39 @@
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: connector
+    component: sample-connector
+  name: sample-connector
+  namespace: openfaas
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: connector
+        component: sample-connector
+    spec:
+      containers:
+      - name: sample-connector
+        image: 192.168.1.9:5000/connector-sample
+        env:
+          - name: gateway_url
+            value: "http://gateway.openfaas:8080"
+          - name: topics
+            value: "faas-request"
+          - name: print_response
+            value: "true"
+          - name: basic_auth
+            value: "false"
+      #     - name: secret_mount_path
+      #       value: "/var/secrets/"
+      #   volumeMounts:
+      #       - name: auth
+      #         readOnly: true
+      #         mountPath: "/var/secrets/"
+      # volumes:
+      # - name: auth
+      #   secret:
+      #     secretName: basic-auth
