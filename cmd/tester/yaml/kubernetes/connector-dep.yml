@@ -17,16 +17,12 @@ spec:
     spec:
       containers:
       - name: sample-connector
-        image: zeerorg/connector-sample
+        image: zeerorg/connector-sample:1.0
         env:
           - name: gateway_url
             value: "http://gateway.openfaas:8080"
-          - name: topics
-            value: "faas-request"
-          - name: print_response
-            value: "true"
           - name: basic_auth
-            value: "false"
+            value: "true"
           - name: secret_mount_path
             value: "/var/secrets/"
         volumeMounts:

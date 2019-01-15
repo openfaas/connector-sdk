@@ -1,16 +1,29 @@
-FROM golang:1.9.2 as builder
-RUN mkdir -p /go/src/github.com/openfaas-incubator/connector
-WORKDIR /go/src/github.com/openfaas-incubator/connector
+FROM golang:1.10.4 as builder
+RUN mkdir -p /go/src/github.com/openfaas-incubator/connector-sdk
+WORKDIR /go/src/github.com/openfaas-incubator/connector-sdk
 
+COPY vendor     vendor
 COPY main.go    .
 
-RUN go get -d -v ./...
+# Run a gofmt and exclude all vendored code.
+RUN test -z "$(gofmt -l $(find . -type f -name '*.go' -not -path "./vendor/*"))"
+
+RUN go test -v ./...
 
 # Stripping via -ldflags "-s -w" 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags "-s -w" -installsuffix cgo -o ./connector
 
-FROM alpine
+FROM alpine:3.8
 
-COPY --from=builder /go/src/github.com/openfaas-incubator/connector/connector /bin/connector
+RUN addgroup -S app \
+    && adduser -S -g app app
 
-CMD ["/bin/connector"]
+WORKDIR /home/app
+
+COPY --from=builder /go/src/github.com/openfaas-incubator/connector-sdk/    .
+
+RUN chown -R app:app ./
+
+USER app
+
+CMD ["./connector"]

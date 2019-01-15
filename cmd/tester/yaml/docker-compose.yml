@@ -1,12 +1,10 @@
 version: '3.2'
 services:
   connector:
-    image: zeerorg/connector-sample
+    image: zeerorg/connector-sample:1.0
     hostname: sample-connector
     environment:
       gateway_url: http://gateway:8080
-      topics: "faas-request"
-      print_response: "true"
       basic_auth: "true"
       secret_mount_path: "/run/secrets/"
     secrets:
