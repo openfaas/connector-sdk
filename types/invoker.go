@@ -21,6 +21,20 @@ type InvocationResult struct {
 	Error      error
 }
 
+func NewInvocationResult(statusCode int, body *[]byte, error error) *InvocationResult {
+	return &InvocationResult{StatusCode: statusCode, Body: body, Error: error}
+}
+
+type InvocationResponse struct {
+	StatusCode int
+	Body       *[]byte
+	Headers http.Header
+}
+
+func NewInvocationResponse(statusCode int, body *[]byte, headers http.Header) *InvocationResponse {
+	return &InvocationResponse{StatusCode: statusCode, Body: body, Headers: headers}
+}
+
 func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) (result map[string]*InvocationResult) {
 	result = make(map[string]*InvocationResult)
 
@@ -30,40 +44,38 @@ func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) (res
 		for _, matchedFunction := range matchedFunctions {
 
 			log.Printf("Invoke function: %s", matchedFunction)
-
-			gwURL := fmt.Sprintf("%s/function/%s", i.GatewayURL, matchedFunction)
+			functionURL := fmt.Sprintf("%s/function/%s", i.GatewayURL, matchedFunction)
 			reader := bytes.NewReader(*message)
 
-			err, statusCode, headers, body := performInvocation(i.Client, gwURL, reader)
+			response, err := i.performInvocation(functionURL, reader)
 
 			if err != nil {
-				result[matchedFunction] = &InvocationResult{
-					StatusCode: statusCode,
-					Body:       nil,
-					Error:      err,
+				if response != nil {
+					result[matchedFunction] = NewInvocationResult(response.StatusCode, nil, err)
+				} else {
+					result[matchedFunction] = NewInvocationResult(-1, nil, err)
 				}
-				return
+			} else {
+				result[matchedFunction] = NewInvocationResult(response.StatusCode, response.Body, err)
 			}
 
-			if body != nil && i.PrintResponse {
-				stringOutput := string(*body)
-				log.Printf("Headers: %s", headers)
-				log.Printf("Response: [%d] from %s %s", statusCode, matchedFunction, stringOutput)
-			}
-
-			result[matchedFunction] = &InvocationResult{
-				StatusCode: statusCode,
-				Body:       body,
-				Error:      nil,
+			if response != nil && response.Body != nil && i.PrintResponse {
+				stringOutput := string(*response.Body)
+				log.Printf("Headers: %s", response.Headers)
+				log.Printf("Response: [%d] from %s %s", response.StatusCode, matchedFunction, stringOutput)
 			}
 		}
 	}
 	return result
 }
 
-func performInvocation(c *http.Client, gwURL string, reader io.Reader) (err error, statusCode int, responseHeaders http.Header, responseBody *[]byte) {
+func (i *Invoker) performInvocation(functionURL string, bodyReader io.Reader) (*InvocationResponse, error) {
 
-	httpReq, _ := http.NewRequest(http.MethodPost, gwURL, reader)
+	httpReq, requestErr := http.NewRequest(http.MethodPost, functionURL, bodyReader)
+
+	if requestErr != nil {
+		return nil, requestErr
+	}
 
 	if httpReq.Body != nil {
 		defer httpReq.Body.Close()
@@ -71,9 +83,9 @@ func performInvocation(c *http.Client, gwURL string, reader io.Reader) (err erro
 
 	var body *[]byte
 
-	res, doErr := c.Do(httpReq)
+	res, doErr := i.Client.Do(httpReq)
 	if doErr != nil {
-		return doErr, http.StatusServiceUnavailable, nil, nil
+		return nil, doErr
 	}
 
 	if res.Body != nil {
@@ -82,11 +94,11 @@ func performInvocation(c *http.Client, gwURL string, reader io.Reader) (err erro
 		bytesOut, readErr := ioutil.ReadAll(res.Body)
 		if readErr != nil {
 			log.Printf("Error reading body")
-			return doErr, http.StatusServiceUnavailable, nil, nil
+			return NewInvocationResponse(res.StatusCode, nil, res.Header), readErr
 
 		}
 		body = &bytesOut
 	}
 
-	return nil, res.StatusCode, res.Header, body
+	return NewInvocationResponse(res.StatusCode, body, res.Header), nil
 }
