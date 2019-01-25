@@ -9,9 +9,16 @@ import (
 
 // ControllerConfig configures a connector SDK controller
 type ControllerConfig struct {
+	// UpstreamTimeout controls maximum timeout invoking a function via the gateway
 	UpstreamTimeout time.Duration
-	GatewayURL      string
-	PrintResponse   bool
+
+	//  GatewayURL is the remote OpenFaaS gateway
+	GatewayURL string
+
+	// PrintResponse if true prints the function responses
+	PrintResponse bool
+
+	// RebuildInterval the interval at which the topic map is rebuilt
 	RebuildInterval time.Duration
 }
 
@@ -21,24 +28,57 @@ type Controller struct {
 	Invoker     *Invoker
 	TopicMap    *TopicMap
 	Credentials *auth.BasicAuthCredentials
+	Subscribers []ResponseSubscriber
+}
+
+// Subscribe adds a ResponseSubscriber to the list of subscribers
+// which receive messages upon function invocation or error
+func (c *Controller) Subscribe(subscriber ResponseSubscriber) {
+	c.Subscribers = append(c.Subscribers, subscriber)
+}
+
+// ResponseSubscriber enables connector or another client in connector
+// to receive results from the function invocation
+type ResponseSubscriber interface {
+	// Response is triggered by the controller when a message is
+	// received from the function invocation
+	Response(InvokerResponse)
 }
 
 // NewController create a new connector SDK controller
 func NewController(credentials *auth.BasicAuthCredentials, config *ControllerConfig) *Controller {
 
-	invoker := Invoker{
-		PrintResponse: config.PrintResponse,
-		Client:        MakeClient(config.UpstreamTimeout),
-		GatewayURL:    config.GatewayURL,
-	}
+	invoker := NewInvoker(config.GatewayURL,
+		MakeClient(config.UpstreamTimeout),
+		config.PrintResponse)
+
+	subs := []ResponseSubscriber{}
+
 	topicMap := NewTopicMap()
 
-	return &Controller{
+	controller := Controller{
 		Config:      config,
-		Invoker:     &invoker,
+		Invoker:     invoker,
 		TopicMap:    &topicMap,
 		Credentials: credentials,
+		Subscribers: subs,
 	}
+
+	if config.PrintResponse {
+		// printer := &{}
+		controller.Subscribe(&ResponsePrinter{})
+	}
+
+	go func(ch *chan InvokerResponse, controller *Controller) {
+		for {
+			res := <-*ch
+			for _, sub := range controller.Subscribers {
+				sub.Response(res)
+			}
+		}
+	}(&invoker.Responses, &controller)
+
+	return &controller
 }
 
 // Invoke attempts to invoke any functions which match the
