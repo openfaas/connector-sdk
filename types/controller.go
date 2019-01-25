@@ -28,12 +28,25 @@ type ControllerConfig struct {
 
 // Controller for the connector SDK
 type Controller struct {
-	Config      *ControllerConfig
-	Invoker     *Invoker
-	TopicMap    *TopicMap
+	// Config for the Controller
+	Config *ControllerConfig
+
+	// Invoker to invoke functions via HTTP(s)
+	Invoker *Invoker
+
+	// Map of which functions subscribe to which topics
+	TopicMap *TopicMap
+
+	// Credentials to access gateway
 	Credentials *auth.BasicAuthCredentials
+
+	// Subscribers which can receive messages from invocations.
+	// See note on ResponseSubscriber interface about blocking/long-running
+	// operations
 	Subscribers []ResponseSubscriber
-	Lock        *sync.RWMutex
+
+	// Lock used for synchronizing subscribers
+	Lock *sync.RWMutex
 }
 
 // NewController create a new connector SDK controller
