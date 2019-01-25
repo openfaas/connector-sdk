@@ -5,7 +5,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/openfaas-incubator/connector-sdk/types"
@@ -20,13 +20,33 @@ func main() {
 	}
 
 	controller := types.NewController(creds, config)
-	fmt.Println(controller)
+
+	receiver := ResponseReceiver{}
+	controller.Subscribe(&receiver)
+
 	controller.BeginMapBuilder()
 
 	// Simulate events emitting from queue/pub-sub
 	for {
 		time.Sleep(2 * time.Second)
 		data := []byte("test " + time.Now().String())
-		controller.Invoke("test", &data)
+		controller.Invoke("vm.powered.on", &data)
+
+	}
+
+}
+
+// ResponseReceiver enables connector to receive results from the
+// function invocation
+type ResponseReceiver struct {
+}
+
+// Response is triggered by the controller when a message is
+// received from the function invocation
+func (ResponseReceiver) Response(res types.InvokerResponse) {
+	if res.Error != nil {
+		log.Printf("tester got error: %s", res.Error.Error())
+	} else {
+		log.Printf("tester got result: [%d] %s => %s (%d) bytes", res.Status, res.Topic, res.Function, len(*res.Body))
 	}
 }
