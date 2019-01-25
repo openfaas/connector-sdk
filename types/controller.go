@@ -2,6 +2,7 @@ package types
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/openfaas/faas-provider/auth"
@@ -18,6 +19,9 @@ type ControllerConfig struct {
 	// PrintResponse if true prints the function responses
 	PrintResponse bool
 
+	// PrintResponseBody if true prints the function response body to stdout
+	PrintResponseBody bool
+
 	// RebuildInterval the interval at which the topic map is rebuilt
 	RebuildInterval time.Duration
 }
@@ -29,20 +33,7 @@ type Controller struct {
 	TopicMap    *TopicMap
 	Credentials *auth.BasicAuthCredentials
 	Subscribers []ResponseSubscriber
-}
-
-// Subscribe adds a ResponseSubscriber to the list of subscribers
-// which receive messages upon function invocation or error
-func (c *Controller) Subscribe(subscriber ResponseSubscriber) {
-	c.Subscribers = append(c.Subscribers, subscriber)
-}
-
-// ResponseSubscriber enables connector or another client in connector
-// to receive results from the function invocation
-type ResponseSubscriber interface {
-	// Response is triggered by the controller when a message is
-	// received from the function invocation
-	Response(InvokerResponse)
+	Lock        *sync.RWMutex
 }
 
 // NewController create a new connector SDK controller
@@ -62,23 +53,37 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 		TopicMap:    &topicMap,
 		Credentials: credentials,
 		Subscribers: subs,
+		Lock:        &sync.RWMutex{},
 	}
 
 	if config.PrintResponse {
 		// printer := &{}
-		controller.Subscribe(&ResponsePrinter{})
+		controller.Subscribe(&ResponsePrinter{config.PrintResponseBody})
 	}
 
 	go func(ch *chan InvokerResponse, controller *Controller) {
 		for {
 			res := <-*ch
+
+			controller.Lock.RLock()
 			for _, sub := range controller.Subscribers {
 				sub.Response(res)
 			}
+			controller.Lock.RUnlock()
 		}
 	}(&invoker.Responses, &controller)
 
 	return &controller
+}
+
+// Subscribe adds a ResponseSubscriber to the list of subscribers
+// which receive messages upon function invocation or error
+// Note: it is not possible to Unsubscribe at this point using
+// the API of the Controller
+func (c *Controller) Subscribe(subscriber ResponseSubscriber) {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	c.Subscribers = append(c.Subscribers, subscriber)
 }
 
 // Invoke attempts to invoke any functions which match the

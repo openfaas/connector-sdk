@@ -14,9 +14,10 @@ import (
 func main() {
 	creds := types.GetCredentials()
 	config := &types.ControllerConfig{
-		RebuildInterval: time.Millisecond * 1000,
-		GatewayURL:      "http://127.0.0.1:8080",
-		PrintResponse:   true,
+		RebuildInterval:   time.Millisecond * 1000,
+		GatewayURL:        "http://127.0.0.1:8080",
+		PrintResponse:     true,
+		PrintResponseBody: true,
 	}
 
 	controller := types.NewController(creds, config)
@@ -31,7 +32,6 @@ func main() {
 		time.Sleep(2 * time.Second)
 		data := []byte("test " + time.Now().String())
 		controller.Invoke("vm.powered.on", &data)
-
 	}
 
 }

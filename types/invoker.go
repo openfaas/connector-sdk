@@ -60,12 +60,6 @@ func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) {
 			continue
 		}
 
-		// if printBody {
-		// 	log.Printf("Response [%d] from %s %s", statusCode, matchedFunction, stringOutput)
-		// } else {
-		// 	log.Printf("Response [%d] from %s", statusCode, matchedFunction)
-		// }
-
 		i.Responses <- InvokerResponse{
 			Body:     body,
 			Status:   statusCode,
