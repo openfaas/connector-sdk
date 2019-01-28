@@ -20,7 +20,9 @@ spec:
         image: zeerorg/connector-sample:1.0
         env:
           - name: gateway_url
-            value: "http://gateway.openfaas:8080"
+            value: "http://gateway.openfaas:8080/"
+          - name: topic
+            value: "faas-request"
           - name: basic_auth
             value: "true"
           - name: secret_mount_path

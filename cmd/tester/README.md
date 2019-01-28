@@ -14,5 +14,5 @@ To check if it actually works and triggers a function, deploy any function with 
 You can also run this command to deploy a sample function and see `trigger-func` invocation count growing in ui.
 
 ```bash
-faas-cli deploy --image=functions/nodeinfo --name=trigger-func --annotation topic=faas-request
+faas-cli deploy --image=functions/nodeinfo --name=trigger-func --annotation topic=vm.powered.on
 ```

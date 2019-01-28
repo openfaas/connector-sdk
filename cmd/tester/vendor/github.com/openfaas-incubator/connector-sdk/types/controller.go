@@ -2,6 +2,7 @@ package types
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/openfaas/faas-provider/auth"
@@ -9,36 +10,93 @@ import (
 
 // ControllerConfig configures a connector SDK controller
 type ControllerConfig struct {
+	// UpstreamTimeout controls maximum timeout invoking a function via the gateway
 	UpstreamTimeout time.Duration
-	GatewayURL      string
-	PrintResponse   bool
+
+	//  GatewayURL is the remote OpenFaaS gateway
+	GatewayURL string
+
+	// PrintResponse if true prints the function responses
+	PrintResponse bool
+
+	// PrintResponseBody if true prints the function response body to stdout
+	PrintResponseBody bool
+
+	// RebuildInterval the interval at which the topic map is rebuilt
 	RebuildInterval time.Duration
 }
 
 // Controller for the connector SDK
 type Controller struct {
-	Config      *ControllerConfig
-	Invoker     *Invoker
-	TopicMap    *TopicMap
+	// Config for the Controller
+	Config *ControllerConfig
+
+	// Invoker to invoke functions via HTTP(s)
+	Invoker *Invoker
+
+	// Map of which functions subscribe to which topics
+	TopicMap *TopicMap
+
+	// Credentials to access gateway
 	Credentials *auth.BasicAuthCredentials
+
+	// Subscribers which can receive messages from invocations.
+	// See note on ResponseSubscriber interface about blocking/long-running
+	// operations
+	Subscribers []ResponseSubscriber
+
+	// Lock used for synchronizing subscribers
+	Lock *sync.RWMutex
 }
 
 // NewController create a new connector SDK controller
 func NewController(credentials *auth.BasicAuthCredentials, config *ControllerConfig) *Controller {
 
-	invoker := Invoker{
-		PrintResponse: config.PrintResponse,
-		Client:        MakeClient(config.UpstreamTimeout),
-		GatewayURL:    config.GatewayURL,
-	}
+	invoker := NewInvoker(config.GatewayURL,
+		MakeClient(config.UpstreamTimeout),
+		config.PrintResponse)
+
+	subs := []ResponseSubscriber{}
+
 	topicMap := NewTopicMap()
 
-	return &Controller{
+	controller := Controller{
 		Config:      config,
-		Invoker:     &invoker,
+		Invoker:     invoker,
 		TopicMap:    &topicMap,
 		Credentials: credentials,
+		Subscribers: subs,
+		Lock:        &sync.RWMutex{},
 	}
+
+	if config.PrintResponse {
+		// printer := &{}
+		controller.Subscribe(&ResponsePrinter{config.PrintResponseBody})
+	}
+
+	go func(ch *chan InvokerResponse, controller *Controller) {
+		for {
+			res := <-*ch
+
+			controller.Lock.RLock()
+			for _, sub := range controller.Subscribers {
+				sub.Response(res)
+			}
+			controller.Lock.RUnlock()
+		}
+	}(&invoker.Responses, &controller)
+
+	return &controller
+}
+
+// Subscribe adds a ResponseSubscriber to the list of subscribers
+// which receive messages upon function invocation or error
+// Note: it is not possible to Unsubscribe at this point using
+// the API of the Controller
+func (c *Controller) Subscribe(subscriber ResponseSubscriber) {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	c.Subscribers = append(c.Subscribers, subscriber)
 }
 
 // Invoke attempts to invoke any functions which match the

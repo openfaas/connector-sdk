@@ -2,12 +2,12 @@
 
 
 [[projects]]
-  digest = "1:2a7750103f5ea9a84634dbb554672ce8b11c762281ec1318038cbec14a470241"
+  digest = "1:82fd6a659744e68edc4de79a304f4e4c1262d6c83d38e30e25b764fc19746883"
   name = "github.com/openfaas-incubator/connector-sdk"
   packages = ["types"]
   pruneopts = "UT"
-  revision = "2db120a2ec4b544bae7ee306975b70c1dc9adcf4"
-  version = "0.2.0"
+  revision = "d722c9f72ad06903f416d1bc89878ba5a824b227"
+  version = "0.3.1"
 
 [[projects]]
   digest = "1:3f69624cb4ae8ab815a672f7d169d64786ee027a9d42eefab3c9d4e9debe0750"
@@ -24,6 +24,14 @@
   pruneopts = "UT"
   revision = "220324e98f5db5aa61f02d1ab13f03e91310796c"
   version = "0.8.1"
+
+[[projects]]
+  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
 
 [solve-meta]
   analyzer-name = "dep"
