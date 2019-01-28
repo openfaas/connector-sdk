@@ -10,7 +10,7 @@ import (
 )
 
 func TestInvoker_Invoke(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fakeGateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		function := strings.Split(r.URL.Path, "/")[2]
 
 		switch function {
@@ -48,7 +48,7 @@ func TestInvoker_Invoke(t *testing.T) {
 		}
 	}))
 
-	client := srv.Client()
+	client := fakeGateway.Client()
 	topicMap := NewTopicMap()
 
 	sampleFunc := map[string][]string{
@@ -68,7 +68,7 @@ func TestInvoker_Invoke(t *testing.T) {
 		target := &Invoker{
 			PrintResponse: false,
 			Client:        client,
-			GatewayURL:    srv.URL,
+			GatewayURL:    fakeGateway.URL,
 			Responses:     responseChannel,
 		}
 		body := []byte("")
@@ -102,7 +102,7 @@ func TestInvoker_Invoke(t *testing.T) {
 		target := &Invoker{
 			PrintResponse: false,
 			Client:        client,
-			GatewayURL:    srv.URL,
+			GatewayURL:    fakeGateway.URL,
 			Responses:     responseChannel,
 		}
 
@@ -142,7 +142,7 @@ func TestInvoker_Invoke(t *testing.T) {
 		target := &Invoker{
 			PrintResponse: false,
 			Client:        client,
-			GatewayURL:    srv.URL,
+			GatewayURL:    fakeGateway.URL,
 			Responses:     responseChannel,
 		}
 
