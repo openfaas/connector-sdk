@@ -40,3 +40,15 @@ func (t *TopicMap) Sync(updated *map[string][]string) {
 
 	t.lookup = updated
 }
+
+func (t *TopicMap) Topics() []string {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	topics := make([]string, 0, len(*t.lookup))
+	for topic := range *t.lookup {
+		topics = append(topics, topic)
+	}
+
+	return topics
+}
