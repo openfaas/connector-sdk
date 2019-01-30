@@ -134,3 +134,9 @@ func synchronizeLookups(ticker *time.Ticker,
 		topicMap.Sync(&lookups)
 	}
 }
+
+// Topics gets the list of topics that functions have indicated should
+// be used as triggers.
+func (c *Controller) Topics() []string {
+	return c.TopicMap.Topics()
+}
