@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/openfaas/faas-provider/auth"
 	"github.com/openfaas/faas/gateway/requests"
@@ -55,12 +56,19 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 		if function.Annotations != nil {
 			annotations := *function.Annotations
 
-			if topic, pass := annotations["topic"]; pass {
+			if topicCSV, exists := annotations["topic"]; exists {
 
-				if serviceMap[topic] == nil {
-					serviceMap[topic] = []string{}
+				topicSlice := strings.Split(topicCSV, ",")
+
+				for _, topic := range topicSlice {
+
+					topic = strings.TrimSpace(topic)
+
+					if serviceMap[topic] == nil {
+						serviceMap[topic] = []string{}
+					}
+					serviceMap[topic] = append(serviceMap[topic], function.Name)
 				}
-				serviceMap[topic] = append(serviceMap[topic], function.Name)
 			}
 		}
 	}

@@ -43,6 +43,37 @@ func TestBuildSingleMatchingFunction(t *testing.T) {
 	}
 }
 
+func TestBuildMultiMatchingFunction(t *testing.T) {
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		functions := []requests.Function{}
+		annotationMap := make(map[string]string)
+		annotationMap["topic"] = "topic1,topic2,topic3"
+
+		functions = append(functions, requests.Function{
+			Name:        "echo",
+			Annotations: &annotationMap,
+		})
+		bytesOut, _ := json.Marshal(functions)
+		w.Write(bytesOut)
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:     client,
+		GatewayURL: srv.URL,
+	}
+
+	lookup, err := builder.Build()
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if len(lookup) != 3 {
+		t.Errorf("Lookup - want: %d items, got: %d", 3, len(lookup))
+	}
+}
+
 func TestBuildNoFunctions(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
