@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/openfaas/faas-provider/auth"
@@ -52,26 +53,47 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 		return serviceMap, marshalErr
 	}
 
+	topicDelim := ","
+
+	if delim, exists := os.LookupEnv("topic_delimiter"); exists && len(delim) > 0 {
+		topicDelim = delim
+	}
+
 	for _, function := range functions {
+
 		if function.Annotations != nil {
+
 			annotations := *function.Annotations
 
-			if topicCSV, exists := annotations["topic"]; exists {
+			if topicNames, exist := annotations["topic"]; exist {
 
-				topicSlice := strings.Split(topicCSV, ",")
+				if strings.Count(topicNames, topicDelim) > 0 {
 
-				for _, topic := range topicSlice {
+					topicSlice := strings.Split(topicNames, topicDelim)
 
-					topic = strings.TrimSpace(topic)
-
-					if serviceMap[topic] == nil {
-						serviceMap[topic] = []string{}
+					for _, topic := range topicSlice {
+						serviceMap = appendServiceMap(topic, function.Name, serviceMap)
 					}
-					serviceMap[topic] = append(serviceMap[topic], function.Name)
+				} else {
+					serviceMap = appendServiceMap(topicNames, function.Name, serviceMap)
 				}
 			}
 		}
 	}
-
 	return serviceMap, err
+}
+
+func appendServiceMap(key string, function string, sm map[string][]string) map[string][]string {
+
+	key = strings.TrimSpace(key)
+
+	if len(key) > 0 {
+
+		if sm[key] == nil {
+			sm[key] = []string{}
+		}
+		sm[key] = append(sm[key], function)
+	}
+
+	return sm
 }
