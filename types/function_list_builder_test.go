@@ -43,6 +43,36 @@ func TestBuildSingleMatchingFunction(t *testing.T) {
 		t.Errorf("Lookup - want: %d items, got: %d", 1, len(lookup))
 	}
 }
+func Test_Build_SingleFunctionNoDelimiter(t *testing.T) {
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		functions := []requests.Function{}
+		annotationMap := make(map[string]string)
+		annotationMap["topic"] = "topic1"
+
+		functions = append(functions, requests.Function{
+			Name:        "echo",
+			Annotations: &annotationMap,
+		})
+		bytesOut, _ := json.Marshal(functions)
+		w.Write(bytesOut)
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:     client,
+		GatewayURL: srv.URL,
+	}
+
+	lookup, err := builder.Build()
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if len(lookup) != 1 {
+		t.Errorf("Lookup - want: %d items, got: %d", 1, len(lookup))
+	}
+}
 
 func TestBuildMultiMatchingFunction(t *testing.T) {
 

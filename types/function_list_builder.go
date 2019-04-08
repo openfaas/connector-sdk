@@ -61,7 +61,7 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 
 			if topicNames, exist := annotations["topic"]; exist {
 
-				if strings.Count(topicNames, s.TopicDelimiter) > 0 {
+				if len(s.TopicDelimiter) > 0 && strings.Count(topicNames, s.TopicDelimiter) > 0 {
 
 					topicSlice := strings.Split(topicNames, s.TopicDelimiter)
 
