@@ -24,6 +24,9 @@ type ControllerConfig struct {
 
 	// RebuildInterval the interval at which the topic map is rebuilt
 	RebuildInterval time.Duration
+
+	// TopicAnnotationDelimiter defines the character upon which to split the Topic annotation value
+	TopicAnnotationDelimiter string
 }
 
 // Controller for the connector SDK
@@ -110,9 +113,10 @@ func (c *Controller) Invoke(topic string, message *[]byte) {
 func (c *Controller) BeginMapBuilder() {
 
 	lookupBuilder := FunctionLookupBuilder{
-		GatewayURL:  c.Config.GatewayURL,
-		Client:      MakeClient(c.Config.UpstreamTimeout),
-		Credentials: c.Credentials,
+		GatewayURL:     c.Config.GatewayURL,
+		Client:         MakeClient(c.Config.UpstreamTimeout),
+		Credentials:    c.Credentials,
+		TopicDelimiter: c.Config.TopicAnnotationDelimiter,
 	}
 
 	ticker := time.NewTicker(c.Config.RebuildInterval)

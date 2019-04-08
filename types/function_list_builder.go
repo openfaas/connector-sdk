@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/openfaas/faas-provider/auth"
@@ -17,9 +16,10 @@ import (
 
 // FunctionLookupBuilder builds a list of OpenFaaS functions
 type FunctionLookupBuilder struct {
-	GatewayURL  string
-	Client      *http.Client
-	Credentials *auth.BasicAuthCredentials
+	GatewayURL     string
+	Client         *http.Client
+	Credentials    *auth.BasicAuthCredentials
+	TopicDelimiter string
 }
 
 // Build compiles a map of topic names and functions that have
@@ -53,12 +53,6 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 		return serviceMap, marshalErr
 	}
 
-	topicDelim := ","
-
-	if delim, exists := os.LookupEnv("topic_delimiter"); exists && len(delim) > 0 {
-		topicDelim = delim
-	}
-
 	for _, function := range functions {
 
 		if function.Annotations != nil {
@@ -67,9 +61,9 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 
 			if topicNames, exist := annotations["topic"]; exist {
 
-				if strings.Count(topicNames, topicDelim) > 0 {
+				if strings.Count(topicNames, s.TopicDelimiter) > 0 {
 
-					topicSlice := strings.Split(topicNames, topicDelim)
+					topicSlice := strings.Split(topicNames, s.TopicDelimiter)
 
 					for _, topic := range topicSlice {
 						serviceMap = appendServiceMap(topic, function.Name, serviceMap)
