@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/openfaas/faas/gateway/requests"
@@ -31,8 +30,9 @@ func TestBuildSingleMatchingFunction(t *testing.T) {
 
 	client := srv.Client()
 	builder := FunctionLookupBuilder{
-		Client:     client,
-		GatewayURL: srv.URL,
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
 	}
 
 	lookup, err := builder.Build()
@@ -62,8 +62,9 @@ func TestBuildMultiMatchingFunction(t *testing.T) {
 
 	client := srv.Client()
 	builder := FunctionLookupBuilder{
-		Client:     client,
-		GatewayURL: srv.URL,
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
 	}
 
 	lookup, err := builder.Build()
@@ -85,8 +86,9 @@ func TestBuildNoFunctions(t *testing.T) {
 
 	client := srv.Client()
 	builder := FunctionLookupBuilder{
-		Client:     client,
-		GatewayURL: srv.URL,
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
 	}
 
 	lookup, err := builder.Build()
@@ -116,8 +118,9 @@ func Test_Build_JustDelim(t *testing.T) {
 
 	client := srv.Client()
 	builder := FunctionLookupBuilder{
-		Client:     client,
-		GatewayURL: srv.URL,
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
 	}
 
 	lookup, err := builder.Build()
@@ -130,9 +133,6 @@ func Test_Build_JustDelim(t *testing.T) {
 }
 
 func Test_Build_MultiMatchingFunctionBespokeDelim(t *testing.T) {
-
-	os.Setenv("topic_delimiter", "|")
-	defer os.Unsetenv("topic_delimiter")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -150,8 +150,9 @@ func Test_Build_MultiMatchingFunctionBespokeDelim(t *testing.T) {
 
 	client := srv.Client()
 	builder := FunctionLookupBuilder{
-		Client:     client,
-		GatewayURL: srv.URL,
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: "|",
 	}
 
 	lookup, err := builder.Build()
