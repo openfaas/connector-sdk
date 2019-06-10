@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -27,6 +28,9 @@ type ControllerConfig struct {
 
 	// TopicAnnotationDelimiter defines the character upon which to split the Topic annotation value
 	TopicAnnotationDelimiter string
+
+	// AsyncFunctionInvocation if true points to the asynchronous function route
+	AsyncFunctionInvocation bool
 }
 
 // Controller for the connector SDK
@@ -55,7 +59,9 @@ type Controller struct {
 // NewController create a new connector SDK controller
 func NewController(credentials *auth.BasicAuthCredentials, config *ControllerConfig) *Controller {
 
-	invoker := NewInvoker(config.GatewayURL,
+	gatewayFunctionPath := gatewayRoute(config)
+
+	invoker := NewInvoker(gatewayFunctionPath,
 		MakeClient(config.UpstreamTimeout),
 		config.PrintResponse)
 
@@ -143,4 +149,11 @@ func synchronizeLookups(ticker *time.Ticker,
 // be used as triggers.
 func (c *Controller) Topics() []string {
 	return c.TopicMap.Topics()
+}
+
+func gatewayRoute(config *ControllerConfig) string {
+	if config.AsyncFunctionInvocation == true {
+		return fmt.Sprintf("%s/%s", config.GatewayURL, "async-function")
+	}
+	return fmt.Sprintf("%s/%s", config.GatewayURL, "function")
 }
