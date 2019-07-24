@@ -12,6 +12,7 @@ import (
 
 	"github.com/openfaas/faas-provider/auth"
 	"github.com/openfaas/faas/gateway/requests"
+	"github.com/pkg/errors"
 )
 
 // FunctionLookupBuilder builds a list of OpenFaaS functions
@@ -26,7 +27,6 @@ type FunctionLookupBuilder struct {
 // advertised to receive messages on said topic
 func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	var err error
-	serviceMap := make(map[string][]string)
 
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/system/functions", s.GatewayURL), nil)
 
@@ -37,7 +37,7 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	res, reqErr := s.Client.Do(req)
 
 	if reqErr != nil {
-		return serviceMap, reqErr
+		return map[string][]string{}, reqErr
 	}
 
 	if res.Body != nil {
@@ -50,10 +50,18 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	marshalErr := json.Unmarshal(bytesOut, &functions)
 
 	if marshalErr != nil {
-		return serviceMap, marshalErr
+		return map[string][]string{}, errors.Wrap(marshalErr, fmt.Sprintf("unable to unmarshal value: %q", string(bytesOut)))
 	}
 
-	for _, function := range functions {
+	serviceMap := buildServiceMap(&functions, s.TopicDelimiter)
+
+	return serviceMap, err
+}
+
+func buildServiceMap(functions *[]requests.Function, topicDelimiter string) map[string][]string {
+	serviceMap := make(map[string][]string)
+
+	for _, function := range *functions {
 
 		if function.Annotations != nil {
 
@@ -61,9 +69,9 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 
 			if topicNames, exist := annotations["topic"]; exist {
 
-				if len(s.TopicDelimiter) > 0 && strings.Count(topicNames, s.TopicDelimiter) > 0 {
+				if len(topicDelimiter) > 0 && strings.Count(topicNames, topicDelimiter) > 0 {
 
-					topicSlice := strings.Split(topicNames, s.TopicDelimiter)
+					topicSlice := strings.Split(topicNames, topicDelimiter)
 
 					for _, topic := range topicSlice {
 						serviceMap = appendServiceMap(topic, function.Name, serviceMap)
@@ -74,7 +82,7 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 			}
 		}
 	}
-	return serviceMap, err
+	return serviceMap
 }
 
 func appendServiceMap(key string, function string, sm map[string][]string) map[string][]string {
