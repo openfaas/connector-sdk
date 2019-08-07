@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -111,7 +112,13 @@ func (c *Controller) Subscribe(subscriber ResponseSubscriber) {
 // Invoke attempts to invoke any functions which match the
 // topic the incoming message was published on.
 func (c *Controller) Invoke(topic string, message *[]byte) {
-	c.Invoker.Invoke(c.TopicMap, topic, message)
+	c.InvokeWithContext(context.Background(), topic, message)
+}
+
+// InvokeWithContext attempts to invoke any functions which match the topic
+// the incoming message was published on while propagating context.
+func (c *Controller) InvokeWithContext(ctx context.Context, topic string, message *[]byte) {
+	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message)
 }
 
 // BeginMapBuilder begins to build a map of function->topic by
