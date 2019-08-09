@@ -16,6 +16,7 @@ type Invoker struct {
 	Client        *http.Client
 	GatewayURL    string
 	Responses     chan InvokerResponse
+	Debug         bool
 }
 
 type InvokerResponse struct {
@@ -27,12 +28,13 @@ type InvokerResponse struct {
 	Function string
 }
 
-func NewInvoker(gatewayURL string, client *http.Client, printResponse bool) *Invoker {
+func NewInvoker(gatewayURL string, client *http.Client, printResponse bool, debug bool) *Invoker {
 	return &Invoker{
 		PrintResponse: printResponse,
 		Client:        client,
 		GatewayURL:    gatewayURL,
 		Responses:     make(chan InvokerResponse),
+		Debug:         debug,
 	}
 }
 
@@ -46,7 +48,9 @@ func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) {
 
 	matchedFunctions := topicMap.Match(topic)
 	for _, matchedFunction := range matchedFunctions {
-		log.Printf("Invoke function: %s", matchedFunction)
+		if i.Debug {
+			log.Printf("Invoke function: %s", matchedFunction)
+		}
 
 		gwURL := fmt.Sprintf("%s/%s", i.GatewayURL, matchedFunction)
 		reader := bytes.NewReader(*message)
