@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -32,6 +33,10 @@ type ControllerConfig struct {
 
 	// AsyncFunctionInvocation if true points to the asynchronous function route
 	AsyncFunctionInvocation bool
+
+	// MetricsBindAddress is the address at which to expose the "/metrics" endpoint.
+	// If empty, metrics won't be exposed.
+	MetricsBindAddress string
 }
 
 // Controller for the connector SDK
@@ -55,6 +60,9 @@ type Controller struct {
 
 	// Lock used for synchronizing subscribers
 	Lock *sync.RWMutex
+
+	// MetricsCollector collects metrics about the controller.
+	MetricsCollector MetricsCollector
 }
 
 // NewController create a new connector SDK controller
@@ -71,12 +79,13 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 	topicMap := NewTopicMap()
 
 	controller := Controller{
-		Config:      config,
-		Invoker:     invoker,
-		TopicMap:    &topicMap,
-		Credentials: credentials,
-		Subscribers: subs,
-		Lock:        &sync.RWMutex{},
+		Config:           config,
+		Invoker:          invoker,
+		TopicMap:         &topicMap,
+		Credentials:      credentials,
+		Subscribers:      subs,
+		Lock:             &sync.RWMutex{},
+		MetricsCollector: newDefaultMetricsCollector(),
 	}
 
 	if config.PrintResponse {
@@ -95,6 +104,15 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 			controller.Lock.RUnlock()
 		}
 	}(&invoker.Responses, &controller)
+
+	// If we've been given a non-empty bind address for metrics, start serving them.
+	if config.MetricsBindAddress != "" {
+		go func() {
+			if err := controller.MetricsCollector.Serve(config.MetricsBindAddress); err != http.ErrServerClosed {
+				log.Fatalln(err)
+			}
+		}()
+	}
 
 	return &controller
 }
@@ -118,7 +136,7 @@ func (c *Controller) Invoke(topic string, message *[]byte) {
 // InvokeWithContext attempts to invoke any functions which match the topic
 // the incoming message was published on while propagating context.
 func (c *Controller) InvokeWithContext(ctx context.Context, topic string, message *[]byte) {
-	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message)
+	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message, c.MetricsCollector)
 }
 
 // BeginMapBuilder begins to build a map of function->topic by
@@ -133,10 +151,10 @@ func (c *Controller) BeginMapBuilder() {
 	}
 
 	ticker := time.NewTicker(c.Config.RebuildInterval)
-	go synchronizeLookups(ticker, &lookupBuilder, c.TopicMap)
+	go c.synchronizeLookups(ticker, &lookupBuilder, c.TopicMap)
 }
 
-func synchronizeLookups(ticker *time.Ticker,
+func (c *Controller) synchronizeLookups(ticker *time.Ticker,
 	lookupBuilder *FunctionLookupBuilder,
 	topicMap *TopicMap) {
 
@@ -147,7 +165,7 @@ func synchronizeLookups(ticker *time.Ticker,
 			log.Fatalln(err)
 		}
 
-		log.Println("Syncing topic map")
+		c.MetricsCollector.RegisterTopicMapSync()
 		topicMap.Sync(&lookups)
 	}
 }

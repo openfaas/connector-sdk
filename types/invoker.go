@@ -38,13 +38,8 @@ func NewInvoker(gatewayURL string, client *http.Client, printResponse bool) *Inv
 	}
 }
 
-// Invoke triggers a function by accessing the API Gateway
-func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) {
-	i.InvokeWithContext(context.Background(), topicMap, topic, message)
-}
-
 // Invoke triggers a function by accessing the API Gateway while propagating context
-func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte) {
+func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte, mc MetricsCollector) {
 	if len(*message) == 0 {
 		i.Responses <- InvokerResponse{
 			Context: ctx,
@@ -54,7 +49,7 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 
 	matchedFunctions := topicMap.Match(topic)
 	for _, matchedFunction := range matchedFunctions {
-		log.Printf("Invoke function: %s", matchedFunction)
+		mc.RegisterFunctionInvocation(matchedFunction)
 
 		gwURL := fmt.Sprintf("%s/%s", i.GatewayURL, matchedFunction)
 		reader := bytes.NewReader(*message)
