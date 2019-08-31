@@ -40,11 +40,11 @@ func NewInvoker(gatewayURL string, client *http.Client, printResponse bool) *Inv
 
 // Invoke triggers a function by accessing the API Gateway
 func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) {
-	i.InvokeWithContext(context.Background(), topicMap, topic, message)
+	i.InvokeWithContext(context.Background(), topicMap, topic, message, nil)
 }
 
 // Invoke triggers a function by accessing the API Gateway while propagating context
-func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte) {
+func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte, headers *map[string]string) {
 	if len(*message) == 0 {
 		i.Responses <- InvokerResponse{
 			Context: ctx,
@@ -59,7 +59,7 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 		gwURL := fmt.Sprintf("%s/%s", i.GatewayURL, matchedFunction)
 		reader := bytes.NewReader(*message)
 
-		body, statusCode, header, doErr := invokefunction(ctx, i.Client, gwURL, reader)
+		body, statusCode, header, doErr := invokefunction(ctx, i.Client, gwURL, reader, headers)
 
 		if doErr != nil {
 			i.Responses <- InvokerResponse{
@@ -80,7 +80,7 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 	}
 }
 
-func invokefunction(ctx context.Context, c *http.Client, gwURL string, reader io.Reader) (*[]byte, int, *http.Header, error) {
+func invokefunction(ctx context.Context, c *http.Client, gwURL string, reader io.Reader, headers *map[string]string) (*[]byte, int, *http.Header, error) {
 
 	httpReq, _ := http.NewRequest(http.MethodPost, gwURL, reader)
 	httpReq.WithContext(ctx)
@@ -89,6 +89,13 @@ func invokefunction(ctx context.Context, c *http.Client, gwURL string, reader io
 		defer httpReq.Body.Close()
 	}
 
+	if headers != nil {
+    mapOfArrays := make(map[string][]string)
+    for k, v := range *headers {
+      mapOfArrays[k] = []string{v}
+    }
+    httpReq.Header = mapOfArrays
+  }
 	var body *[]byte
 
 	res, doErr := c.Do(httpReq)

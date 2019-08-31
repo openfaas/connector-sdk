@@ -118,7 +118,13 @@ func (c *Controller) Invoke(topic string, message *[]byte) {
 // InvokeWithContext attempts to invoke any functions which match the topic
 // the incoming message was published on while propagating context.
 func (c *Controller) InvokeWithContext(ctx context.Context, topic string, message *[]byte) {
-	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message)
+	c.InvokeWithContextAndHeaders(ctx, topic, message, nil)
+}
+
+// InvokeWithContext attempts to invoke any functions which match the topic
+// the incoming message was published on while propagating context.
+func (c *Controller) InvokeWithContextAndHeaders(ctx context.Context, topic string, message *[]byte, headers *map[string]string) {
+	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message, headers)
 }
 
 // BeginMapBuilder begins to build a map of function->topic by
