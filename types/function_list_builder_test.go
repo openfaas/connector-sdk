@@ -9,18 +9,18 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/openfaas/faas/gateway/requests"
+	"github.com/openfaas/faas-provider/types"
 )
 
 func TestBuildSingleMatchingFunction(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		functions := []requests.Function{}
+		functions := make([]types.FunctionStatus, 0, 0)
 		annotationMap := make(map[string]string)
 		annotationMap["topic"] = "topic1"
 
-		functions = append(functions, requests.Function{
+		functions = append(functions, types.FunctionStatus{
 			Name:        "echo",
 			Annotations: &annotationMap,
 		})
@@ -47,11 +47,11 @@ func Test_Build_SingleFunctionNoDelimiter(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		functions := []requests.Function{}
+		functions := make([]types.FunctionStatus, 0, 0)
 		annotationMap := make(map[string]string)
 		annotationMap["topic"] = "topic1"
 
-		functions = append(functions, requests.Function{
+		functions = append(functions, types.FunctionStatus{
 			Name:        "echo",
 			Annotations: &annotationMap,
 		})
@@ -78,11 +78,11 @@ func TestBuildMultiMatchingFunction(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		functions := []requests.Function{}
+		functions := make([]types.FunctionStatus, 0, 0)
 		annotationMap := make(map[string]string)
 		annotationMap["topic"] = "topic1,topic2,topic3"
 
-		functions = append(functions, requests.Function{
+		functions = append(functions, types.FunctionStatus{
 			Name:        "echo",
 			Annotations: &annotationMap,
 		})
@@ -109,7 +109,7 @@ func TestBuildMultiMatchingFunction(t *testing.T) {
 func TestBuildNoFunctions(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		functions := []requests.Function{}
+		functions := make([]types.FunctionStatus, 0, 0)
 		bytesOut, _ := json.Marshal(functions)
 		w.Write(bytesOut)
 	}))
@@ -134,11 +134,11 @@ func Test_Build_JustDelim(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		functions := []requests.Function{}
+		functions := make([]types.FunctionStatus, 0, 0)
 		annotationMap := make(map[string]string)
 		annotationMap["topic"] = ","
 
-		functions = append(functions, requests.Function{
+		functions = append(functions, types.FunctionStatus{
 			Name:        "echo",
 			Annotations: &annotationMap,
 		})
@@ -166,11 +166,11 @@ func Test_Build_MultiMatchingFunctionBespokeDelim(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		functions := []requests.Function{}
+		functions := make([]types.FunctionStatus, 0, 0)
 		annotationMap := make(map[string]string)
 		annotationMap["topic"] = "topic1|topic2|topic3,withcomma"
 
-		functions = append(functions, requests.Function{
+		functions = append(functions, types.FunctionStatus{
 			Name:        "echo",
 			Annotations: &annotationMap,
 		})
