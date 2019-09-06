@@ -124,7 +124,6 @@ func (c *Controller) InvokeWithContext(ctx context.Context, topic string, messag
 // BeginMapBuilder begins to build a map of function->topic by
 // querying the API gateway.
 func (c *Controller) BeginMapBuilder() {
-
 	lookupBuilder := FunctionLookupBuilder{
 		GatewayURL:     c.Config.GatewayURL,
 		Client:         MakeClient(c.Config.UpstreamTimeout),
@@ -140,15 +139,19 @@ func synchronizeLookups(ticker *time.Ticker,
 	lookupBuilder *FunctionLookupBuilder,
 	topicMap *TopicMap) {
 
-	for {
-		<-ticker.C
+	fn := func() {
 		lookups, err := lookupBuilder.Build()
 		if err != nil {
 			log.Fatalln(err)
 		}
-
 		log.Println("Syncing topic map")
 		topicMap.Sync(&lookups)
+	}
+
+	fn()
+	for {
+		<-ticker.C
+		fn()
 	}
 }
 
