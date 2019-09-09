@@ -34,9 +34,18 @@ type ControllerConfig struct {
 	AsyncFunctionInvocation bool
 }
 
-// Controller for the connector SDK
-type Controller struct {
-	// Config for the Controller
+// Controller is used to invoke functions on a per-topic basis and to subscribe to responses returned by said functions.
+type Controller interface {
+	Subscribe(subscriber ResponseSubscriber)
+	Invoke(topic string, message *[]byte)
+	InvokeWithContext(ctx context.Context, topic string, message *[]byte)
+	BeginMapBuilder()
+	Topics() []string
+}
+
+// controller is the default implementation of the Controller interface.
+type controller struct {
+	// Config for the controller
 	Config *ControllerConfig
 
 	// Invoker to invoke functions via HTTP(s)
@@ -58,7 +67,7 @@ type Controller struct {
 }
 
 // NewController create a new connector SDK controller
-func NewController(credentials *auth.BasicAuthCredentials, config *ControllerConfig) *Controller {
+func NewController(credentials *auth.BasicAuthCredentials, config *ControllerConfig) Controller {
 
 	gatewayFunctionPath := gatewayRoute(config)
 
@@ -70,7 +79,7 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 
 	topicMap := NewTopicMap()
 
-	controller := Controller{
+	c := controller{
 		Config:      config,
 		Invoker:     invoker,
 		TopicMap:    &topicMap,
@@ -81,10 +90,10 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 
 	if config.PrintResponse {
 		// printer := &{}
-		controller.Subscribe(&ResponsePrinter{config.PrintResponseBody})
+		c.Subscribe(&ResponsePrinter{config.PrintResponseBody})
 	}
 
-	go func(ch *chan InvokerResponse, controller *Controller) {
+	go func(ch *chan InvokerResponse, controller *controller) {
 		for {
 			res := <-*ch
 
@@ -94,16 +103,16 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 			}
 			controller.Lock.RUnlock()
 		}
-	}(&invoker.Responses, &controller)
+	}(&invoker.Responses, &c)
 
-	return &controller
+	return &c
 }
 
 // Subscribe adds a ResponseSubscriber to the list of subscribers
 // which receive messages upon function invocation or error
 // Note: it is not possible to Unsubscribe at this point using
-// the API of the Controller
-func (c *Controller) Subscribe(subscriber ResponseSubscriber) {
+// the API of the controller
+func (c *controller) Subscribe(subscriber ResponseSubscriber) {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	c.Subscribers = append(c.Subscribers, subscriber)
@@ -111,19 +120,19 @@ func (c *Controller) Subscribe(subscriber ResponseSubscriber) {
 
 // Invoke attempts to invoke any functions which match the
 // topic the incoming message was published on.
-func (c *Controller) Invoke(topic string, message *[]byte) {
+func (c *controller) Invoke(topic string, message *[]byte) {
 	c.InvokeWithContext(context.Background(), topic, message)
 }
 
 // InvokeWithContext attempts to invoke any functions which match the topic
 // the incoming message was published on while propagating context.
-func (c *Controller) InvokeWithContext(ctx context.Context, topic string, message *[]byte) {
+func (c *controller) InvokeWithContext(ctx context.Context, topic string, message *[]byte) {
 	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message)
 }
 
 // BeginMapBuilder begins to build a map of function->topic by
 // querying the API gateway.
-func (c *Controller) BeginMapBuilder() {
+func (c *controller) BeginMapBuilder() {
 
 	lookupBuilder := FunctionLookupBuilder{
 		GatewayURL:     c.Config.GatewayURL,
@@ -154,7 +163,7 @@ func synchronizeLookups(ticker *time.Ticker,
 
 // Topics gets the list of topics that functions have indicated should
 // be used as triggers.
-func (c *Controller) Topics() []string {
+func (c *controller) Topics() []string {
 	return c.TopicMap.Topics()
 }
 
