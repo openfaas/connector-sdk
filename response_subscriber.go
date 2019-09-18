@@ -1,4 +1,4 @@
-package types
+package connector_sdk
 
 // ResponseSubscriber enables connector or another client in connector
 // to receive results from the function invocation.

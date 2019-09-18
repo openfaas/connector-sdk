@@ -148,7 +148,7 @@ func WithStack(err error) error {
 	}
 	return &withStack{
 		err,
-		callers(),
+    callers(),
 	}
 }
 
@@ -188,7 +188,7 @@ func Wrap(err error, message string) error {
 	}
 	return &withStack{
 		err,
-		callers(),
+    callers(),
 	}
 }
 
@@ -205,7 +205,7 @@ func Wrapf(err error, format string, args ...interface{}) error {
 	}
 	return &withStack{
 		err,
-		callers(),
+    callers(),
 	}
 }
 
