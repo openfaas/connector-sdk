@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/openfaas/faas-provider/auth"
-	"github.com/openfaas/faas/gateway/requests"
+	"github.com/openfaas/faas-provider/types"
 	"github.com/pkg/errors"
 )
 
@@ -46,7 +46,7 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 
 	bytesOut, _ := ioutil.ReadAll(res.Body)
 
-	functions := []requests.Function{}
+	functions := []types.FunctionStatus{}
 	marshalErr := json.Unmarshal(bytesOut, &functions)
 
 	if marshalErr != nil {
@@ -58,7 +58,7 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	return serviceMap, err
 }
 
-func buildServiceMap(functions *[]requests.Function, topicDelimiter string) map[string][]string {
+func buildServiceMap(functions *[]types.FunctionStatus, topicDelimiter string) map[string][]string {
 	serviceMap := make(map[string][]string)
 
 	for _, function := range *functions {
