@@ -43,7 +43,7 @@ func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) {
 	i.InvokeWithContext(context.Background(), topicMap, topic, message)
 }
 
-// Invoke triggers a function by accessing the API Gateway while propagating context
+//InvokeWithContext triggers a function by accessing the API Gateway while propagating context
 func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte) {
 	if len(*message) == 0 {
 		i.Responses <- InvokerResponse{

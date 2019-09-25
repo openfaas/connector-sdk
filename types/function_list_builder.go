@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/openfaas/faas-provider/auth"
@@ -23,13 +24,56 @@ type FunctionLookupBuilder struct {
 	TopicDelimiter string
 }
 
-// Build compiles a map of topic names and functions that have
-// advertised to receive messages on said topic
-func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
-	var err error
+//getNamespaces get openfaas namespaces
+func (s *FunctionLookupBuilder) getNamespaces() ([]string, error) {
+	var (
+		err        error
+		namespaces []string
+	)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/system/namespaces", s.GatewayURL), nil)
+	if err != nil {
+		return namespaces, err
+	}
 
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/system/functions", s.GatewayURL), nil)
+	if s.Credentials != nil {
+		req.SetBasicAuth(s.Credentials.User, s.Credentials.Password)
+	}
 
+	res, err := s.Client.Do(req)
+	if err != nil {
+		return namespaces, err
+	}
+
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
+
+	bytesOut, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return namespaces, err
+	}
+
+	err = json.Unmarshal(bytesOut, &namespaces)
+	if err != nil {
+		return namespaces, err
+	}
+
+	return namespaces, err
+}
+
+func (s *FunctionLookupBuilder) getFunctions(namespace string) ([]types.FunctionStatus, error) {
+	gateway := fmt.Sprintf("%s/system/functions", s.GatewayURL)
+	gatewayURL, err := url.Parse(gateway)
+	if err != nil {
+		return []types.FunctionStatus{}, fmt.Errorf("invalid gateway URL: %s", err.Error())
+	}
+	if len(namespace) > 0 {
+		query := gatewayURL.Query()
+		query.Set("namespace", namespace)
+		gatewayURL.RawQuery = query.Encode()
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, gatewayURL.String(), nil)
 	if s.Credentials != nil {
 		req.SetBasicAuth(s.Credentials.User, s.Credentials.Password)
 	}
@@ -37,7 +81,7 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	res, reqErr := s.Client.Do(req)
 
 	if reqErr != nil {
-		return map[string][]string{}, reqErr
+		return []types.FunctionStatus{}, reqErr
 	}
 
 	if res.Body != nil {
@@ -50,17 +94,38 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	marshalErr := json.Unmarshal(bytesOut, &functions)
 
 	if marshalErr != nil {
-		return map[string][]string{}, errors.Wrap(marshalErr, fmt.Sprintf("unable to unmarshal value: %q", string(bytesOut)))
+		return []types.FunctionStatus{}, errors.Wrap(marshalErr, fmt.Sprintf("unable to unmarshal value: %q", string(bytesOut)))
 	}
 
-	serviceMap := buildServiceMap(&functions, s.TopicDelimiter)
+	return functions, nil
+}
+
+// Build compiles a map of topic names and functions that have
+// advertised to receive messages on said topic
+func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
+	var (
+		err error
+	)
+
+	namespaces, err := s.getNamespaces()
+	if err != nil {
+		return map[string][]string{}, err
+	}
+
+	serviceMap := make(map[string][]string)
+
+	for _, namespace := range namespaces {
+		functions, err := s.getFunctions(namespace)
+		if err != nil {
+			return map[string][]string{}, err
+		}
+		serviceMap = buildServiceMap(&functions, s.TopicDelimiter, namespace, serviceMap)
+	}
 
 	return serviceMap, err
 }
 
-func buildServiceMap(functions *[]types.FunctionStatus, topicDelimiter string) map[string][]string {
-	serviceMap := make(map[string][]string)
-
+func buildServiceMap(functions *[]types.FunctionStatus, topicDelimiter, namespace string, serviceMap map[string][]string) map[string][]string {
 	for _, function := range *functions {
 
 		if function.Annotations != nil {
@@ -74,10 +139,10 @@ func buildServiceMap(functions *[]types.FunctionStatus, topicDelimiter string) m
 					topicSlice := strings.Split(topicNames, topicDelimiter)
 
 					for _, topic := range topicSlice {
-						serviceMap = appendServiceMap(topic, function.Name, serviceMap)
+						serviceMap = appendServiceMap(topic, function.Name, namespace, serviceMap)
 					}
 				} else {
-					serviceMap = appendServiceMap(topicNames, function.Name, serviceMap)
+					serviceMap = appendServiceMap(topicNames, function.Name, namespace, serviceMap)
 				}
 			}
 		}
@@ -85,7 +150,7 @@ func buildServiceMap(functions *[]types.FunctionStatus, topicDelimiter string) m
 	return serviceMap
 }
 
-func appendServiceMap(key string, function string, sm map[string][]string) map[string][]string {
+func appendServiceMap(key, function, namespace string, sm map[string][]string) map[string][]string {
 
 	key = strings.TrimSpace(key)
 
@@ -94,7 +159,9 @@ func appendServiceMap(key string, function string, sm map[string][]string) map[s
 		if sm[key] == nil {
 			sm[key] = []string{}
 		}
-		sm[key] = append(sm[key], function)
+
+		functionPath := fmt.Sprintf("%s.%s", function, namespace) // add namespaces support
+		sm[key] = append(sm[key], functionPath)
 	}
 
 	return sm
