@@ -5,7 +5,9 @@
 package main
 
 import (
+	"errors"
 	"log"
+	"os"
 	"time"
 
 	"github.com/openfaas-incubator/connector-sdk/types"
@@ -13,11 +15,9 @@ import (
 
 func main() {
 	creds := types.GetCredentials()
-	config := &types.ControllerConfig{
-		RebuildInterval:   time.Millisecond * 1000,
-		GatewayURL:        "http://127.0.0.1:8080",
-		PrintResponse:     true,
-		PrintResponseBody: true,
+	config, err := getControllerConfig()
+	if err != nil {
+		panic(err)
 	}
 
 	controller := types.NewController(creds, config)
@@ -27,11 +27,16 @@ func main() {
 
 	controller.BeginMapBuilder()
 
+	topic, err := getTopic()
+	if err != nil {
+		panic(err)
+	}
+
 	// Simulate events emitting from queue/pub-sub
 	for {
 		time.Sleep(2 * time.Second)
 		data := []byte("test " + time.Now().String())
-		controller.Invoke("vm.powered.on", &data)
+		controller.Invoke(topic, &data)
 	}
 
 }
@@ -49,4 +54,27 @@ func (ResponseReceiver) Response(res types.InvokerResponse) {
 	} else {
 		log.Printf("tester got result: [%d] %s => %s (%d) bytes", res.Status, res.Topic, res.Function, len(*res.Body))
 	}
+}
+
+func getControllerConfig() (*types.ControllerConfig, error) {
+	gatewayURL, ok := os.LookupEnv("gateway_url")
+	if !ok {
+		return nil, errors.New("Gateway URL not set")
+	}
+
+	return &types.ControllerConfig{
+		RebuildInterval:   time.Millisecond * 1000,
+		GatewayURL:        gatewayURL,
+		PrintResponse:     true,
+		PrintResponseBody: true,
+	}, nil
+}
+
+func getTopic() (string, error) {
+	topic, ok := os.LookupEnv("topic")
+	if !ok {
+		return "", errors.New("topic not provided")
+	}
+
+	return topic, nil
 }

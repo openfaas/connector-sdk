@@ -1,0 +1,37 @@
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: connector
+    component: sample-connector
+  name: sample-connector
+  namespace: openfaas
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: connector
+        component: sample-connector
+    spec:
+      containers:
+      - name: sample-connector
+        image: zeerorg/connector-sample:1.0
+        env:
+          - name: gateway_url
+            value: "http://gateway.openfaas:8080/"
+          - name: topic
+            value: "faas-request"
+          - name: basic_auth
+            value: "true"
+          - name: secret_mount_path
+            value: "/var/secrets/"
+        volumeMounts:
+            - name: auth
+              readOnly: true
+              mountPath: "/var/secrets/"
+      volumes:
+      - name: auth
+        secret:
+          secretName: basic-auth

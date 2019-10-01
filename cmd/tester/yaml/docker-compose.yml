@@ -1,0 +1,25 @@
+version: '3.2'
+services:
+  connector:
+    image: zeerorg/connector-sample:1.0
+    hostname: sample-connector
+    environment:
+      basic_auth: "true"
+      secret_mount_path: "/run/secrets/"
+      gateway_url: "http://gateway:8080/"
+      topic: "faas-request"
+    secrets:
+      - basic-auth-password
+      - basic-auth-user
+    networks:
+      - func_functions
+
+networks:
+  func_functions:
+    external: true
+
+secrets:
+    basic-auth-user:
+        external: true
+    basic-auth-password:
+        external: true
