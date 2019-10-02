@@ -369,3 +369,106 @@ func Test_BuildMultipleNamespaceFunction(t *testing.T) {
 		t.Errorf("Topic %s - want: %d functions, got: %d", "topic1", 2, len(functions))
 	}
 }
+
+func Test_GetNamespaces(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		namespaces := []string{"openfaas-fn", "fn"}
+		bytesOut, _ := json.Marshal(namespaces)
+		w.Write(bytesOut)
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:     client,
+		GatewayURL: srv.URL,
+	}
+
+	namespaces, err := builder.getNamespaces()
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if len(namespaces) != 2 {
+		t.Errorf("Namespaces - want: %d, got: %d", 2, len(namespaces))
+	}
+}
+
+func Test_GetFunctions(t *testing.T) {
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
+			functions := []types.FunctionStatus{}
+			if r.URL.Query().Get("namespace") == "openfaas-fn" {
+				annotationMap := make(map[string]string)
+				annotationMap["topic"] = "topic1"
+
+				functions = append(functions, types.FunctionStatus{
+					Name:        "echo",
+					Annotations: &annotationMap,
+					Namespace:   "openfaas-fn",
+				})
+			}
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
+	}
+
+	functions, err := builder.getFunctions("openfaas-fn")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if len(functions) != 1 {
+		t.Errorf("Functions - want: %d items, got: %d", 1, len(functions))
+	}
+}
+
+func Test_GetEmptyFunctions(t *testing.T) {
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
+			functions := []types.FunctionStatus{}
+			if r.URL.Query().Get("namespace") == "openfaas-fn" {
+				annotationMap := make(map[string]string)
+				annotationMap["topic"] = "topic1"
+
+				functions = append(functions, types.FunctionStatus{
+					Name:        "echo",
+					Annotations: &annotationMap,
+					Namespace:   "openfaas-fn",
+				})
+
+			}
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
+	}
+
+	functions, err := builder.getFunctions("fn")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if len(functions) != 0 {
+		t.Errorf("Functions - want: %d items, got: %d", 0, len(functions))
+	}
+}
