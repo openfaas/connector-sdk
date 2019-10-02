@@ -15,17 +15,23 @@ import (
 func TestBuildSingleMatchingFunction(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = "topic1"
 
-		functions := []types.FunctionStatus{}
-		annotationMap := make(map[string]string)
-		annotationMap["topic"] = "topic1"
-
-		functions = append(functions, types.FunctionStatus{
-			Name:        "echo",
-			Annotations: &annotationMap,
-		})
-		bytesOut, _ := json.Marshal(functions)
-		w.Write(bytesOut)
+			functions = append(functions, types.FunctionStatus{
+				Name:        "echo",
+				Annotations: &annotationMap,
+				Namespace:   "openfaas-fn",
+			})
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
 	}))
 
 	client := srv.Client()
@@ -47,16 +53,22 @@ func Test_Build_SingleFunctionNoDelimiter(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		functions := []types.FunctionStatus{}
-		annotationMap := make(map[string]string)
-		annotationMap["topic"] = "topic1"
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = "topic1"
 
-		functions = append(functions, types.FunctionStatus{
-			Name:        "echo",
-			Annotations: &annotationMap,
-		})
-		bytesOut, _ := json.Marshal(functions)
-		w.Write(bytesOut)
+			functions = append(functions, types.FunctionStatus{
+				Name:        "echo",
+				Annotations: &annotationMap,
+			})
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
 	}))
 
 	client := srv.Client()
@@ -77,17 +89,22 @@ func Test_Build_SingleFunctionNoDelimiter(t *testing.T) {
 func TestBuildMultiMatchingFunction(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = "topic1,topic2,topic3"
 
-		functions := []types.FunctionStatus{}
-		annotationMap := make(map[string]string)
-		annotationMap["topic"] = "topic1,topic2,topic3"
-
-		functions = append(functions, types.FunctionStatus{
-			Name:        "echo",
-			Annotations: &annotationMap,
-		})
-		bytesOut, _ := json.Marshal(functions)
-		w.Write(bytesOut)
+			functions = append(functions, types.FunctionStatus{
+				Name:        "echo",
+				Annotations: &annotationMap,
+			})
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
 	}))
 
 	client := srv.Client()
@@ -133,17 +150,23 @@ func TestBuildNoFunctions(t *testing.T) {
 func Test_Build_JustDelim(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
 
-		functions := []types.FunctionStatus{}
-		annotationMap := make(map[string]string)
-		annotationMap["topic"] = ","
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = ","
 
-		functions = append(functions, types.FunctionStatus{
-			Name:        "echo",
-			Annotations: &annotationMap,
-		})
-		bytesOut, _ := json.Marshal(functions)
-		w.Write(bytesOut)
+			functions = append(functions, types.FunctionStatus{
+				Name:        "echo",
+				Annotations: &annotationMap,
+			})
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
 	}))
 
 	client := srv.Client()
@@ -165,17 +188,22 @@ func Test_Build_JustDelim(t *testing.T) {
 func Test_Build_MultiMatchingFunctionBespokeDelim(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = "topic1|topic2|topic3,withcomma"
 
-		functions := []types.FunctionStatus{}
-		annotationMap := make(map[string]string)
-		annotationMap["topic"] = "topic1|topic2|topic3,withcomma"
-
-		functions = append(functions, types.FunctionStatus{
-			Name:        "echo",
-			Annotations: &annotationMap,
-		})
-		bytesOut, _ := json.Marshal(functions)
-		w.Write(bytesOut)
+			functions = append(functions, types.FunctionStatus{
+				Name:        "echo",
+				Annotations: &annotationMap,
+			})
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
 	}))
 
 	client := srv.Client()
@@ -199,6 +227,7 @@ func Test_appendServiceMap(t *testing.T) {
 		Name               string
 		Key                string
 		Function           string
+		Namespace          string
 		InputServiceMap    map[string][]string
 		ExpectedServiceMap map[string][]string
 	}{
@@ -206,15 +235,17 @@ func Test_appendServiceMap(t *testing.T) {
 			Name:            "Empty starting map - key with length",
 			Key:             "newKey",
 			Function:        "fnName",
+			Namespace:       "openfaas-fn",
 			InputServiceMap: map[string][]string{},
 			ExpectedServiceMap: map[string][]string{
-				"newKey": {"fnName"},
+				"newKey": {"fnName.openfaas-fn"},
 			},
 		},
 		{
 			Name:               "Empty starting map - zero key length",
 			Key:                "",
 			Function:           "fnName",
+			Namespace:          "openfaas-fn",
 			InputServiceMap:    map[string][]string{},
 			ExpectedServiceMap: map[string][]string{},
 		},
@@ -222,15 +253,17 @@ func Test_appendServiceMap(t *testing.T) {
 			Name:            "Populated starting map - key with length",
 			Key:             "theKey",
 			Function:        "newName",
+			Namespace:       "fn",
 			InputServiceMap: map[string][]string{"theKey": {"fnName"}},
 			ExpectedServiceMap: map[string][]string{
-				"theKey": {"fnName", "newName"},
+				"theKey": {"fnName", "newName.fn"},
 			},
 		},
 		{
 			Name:            "Populated starting map - zero key length",
 			Key:             "",
 			Function:        "newName",
+			Namespace:       "fn",
 			InputServiceMap: map[string][]string{"theKey": {"fnName"}},
 			ExpectedServiceMap: map[string][]string{
 				"theKey": {"fnName"},
@@ -240,27 +273,29 @@ func Test_appendServiceMap(t *testing.T) {
 			Name:            "Populated starting map - new key with length",
 			Key:             "newKey",
 			Function:        "newName",
+			Namespace:       "fn",
 			InputServiceMap: map[string][]string{"theKey": {"fnName"}},
 			ExpectedServiceMap: map[string][]string{
 				"theKey": {"fnName"},
-				"newKey": {"newName"},
+				"newKey": {"newName.fn"},
 			},
 		},
 		{
 			Name:            "Populated starting map - existing key new function",
 			Key:             "newKey",
 			Function:        "secondName",
+			Namespace:       "openfaas-fn",
 			InputServiceMap: map[string][]string{"theKey": {"fnName"}, "newKey": {"newName"}},
 			ExpectedServiceMap: map[string][]string{
 				"theKey": {"fnName"},
-				"newKey": {"newName", "secondName"},
+				"newKey": {"newName", "secondName.openfaas-fn"},
 			},
 		},
 	}
 
 	for _, test := range TestCases {
 
-		serviceMap := appendServiceMap(test.Key, test.Function, test.InputServiceMap)
+		serviceMap := appendServiceMap(test.Key, test.Function, test.Namespace, test.InputServiceMap)
 
 		if len(serviceMap) != len(test.ExpectedServiceMap) {
 			t.Errorf("Testcase %s failed on serviceMap size. want - %d, got - %d", test.Name, len(test.ExpectedServiceMap), len(serviceMap))
@@ -287,5 +322,50 @@ func Test_appendServiceMap(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func Test_BuildMultipleNamespaceFunction(t *testing.T) {
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn", "fn"}
+			bytesOut, _ := json.Marshal(namespaces)
+			w.Write(bytesOut)
+		} else {
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = "topic1"
+
+			functions = append(functions, types.FunctionStatus{
+				Name:        "echo",
+				Annotations: &annotationMap,
+				Namespace:   "openfaas-fn",
+			})
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
+	}
+
+	lookup, err := builder.Build()
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if len(lookup) != 1 {
+		t.Errorf("Lookup - want: %d items, got: %d", 1, len(lookup))
+	}
+	functions, ok := lookup["topic1"]
+	if !ok {
+		t.Errorf("Topic %s does not exists", "topic1")
+	}
+	if len(functions) != 2 {
+		t.Errorf("Topic %s - want: %d functions, got: %d", "topic1", 2, len(functions))
 	}
 }
