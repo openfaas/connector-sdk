@@ -33,8 +33,8 @@ type ControllerConfig struct {
 	// AsyncFunctionInvocation if true points to the asynchronous function route
 	AsyncFunctionInvocation bool
 
-	// Debug indicates whether debug logging is enabled.
-	Debug bool
+	// PrintSync indicates whether the sync should be logged.
+	PrintSync bool
 }
 
 // Controller for the connector SDK
@@ -68,7 +68,7 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 	invoker := NewInvoker(gatewayFunctionPath,
 		MakeClient(config.UpstreamTimeout),
 		config.PrintResponse,
-		config.Debug)
+		config.PrintSync)
 
 	subs := []ResponseSubscriber{}
 
@@ -149,7 +149,7 @@ func (c *Controller) synchronizeLookups(ticker *time.Ticker,
 			log.Fatalln(err)
 		}
 
-		if c.Config.Debug {
+		if c.Config.PrintSync {
 			log.Println("Syncing topic map")
 		}
 
