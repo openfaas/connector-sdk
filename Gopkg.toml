@@ -1,11 +1,10 @@
 [[constraint]]
   name = "github.com/openfaas/faas"
-  version = "0.18.0"
+  version = "0.18.2"
 
 [[constraint]]
   name = "github.com/openfaas/faas-provider"
-  version = "0.10.2"
-
+  version = "0.13.0"
 
 [[constraint]]
   name = "github.com/pkg/errors"

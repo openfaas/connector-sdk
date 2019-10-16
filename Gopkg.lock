@@ -2,23 +2,15 @@
 
 
 [[projects]]
-  digest = "1:0250441ac9f681c839722297897952ee6d633f2a37dc254eca9d6d21bd1e877d"
-  name = "github.com/openfaas/faas"
-  packages = ["gateway/requests"]
-  pruneopts = "UT"
-  revision = "137b63e61fe55e0aea7df466931198c37817f743"
-  version = "0.18.0"
-
-[[projects]]
-  digest = "1:5e3d58f3f10333495afd0248507ef369bfc4a938ff679d568f7ac38af1e067dd"
+  digest = "1:63153ec3ac1c4e93e615b6f5b271a35ad8ced327eba70530903edac0b1f3e652"
   name = "github.com/openfaas/faas-provider"
   packages = [
     "auth",
     "types",
   ]
   pruneopts = "UT"
-  revision = "eafd85a3b360d8e0982c3a1db43e6d5fee9b85e2"
-  version = "0.10.2"
+  revision = "8699aa7d3999c17851f88640c0dd2291daafd45e"
+  version = "0.13.0"
 
 [[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
@@ -34,7 +26,6 @@
   input-imports = [
     "github.com/openfaas/faas-provider/auth",
     "github.com/openfaas/faas-provider/types",
-    "github.com/openfaas/faas/gateway/requests",
     "github.com/pkg/errors",
   ]
   solver-name = "gps-cdcl"
