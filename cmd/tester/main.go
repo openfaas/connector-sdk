@@ -5,14 +5,27 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"time"
 
 	"github.com/openfaas-incubator/connector-sdk/types"
+	"github.com/openfaas/faas-provider/auth"
 )
 
 func main() {
-	creds := types.GetCredentials()
+
+	var username, password string
+
+	flag.StringVar(&username, "username", "admin", "username")
+	flag.StringVar(&password, "password", "", "password")
+	flag.Parse()
+
+	creds := &auth.BasicAuthCredentials{
+		User:     username,
+		Password: password,
+	}
+
 	config := &types.ControllerConfig{
 		RebuildInterval:   time.Millisecond * 1000,
 		GatewayURL:        "http://127.0.0.1:8080",
