@@ -32,6 +32,9 @@ type ControllerConfig struct {
 
 	// AsyncFunctionInvocation if true points to the asynchronous function route
 	AsyncFunctionInvocation bool
+
+	// Debug indicates whether debug logging is enabled.
+	Debug bool
 }
 
 // Controller for the connector SDK
@@ -64,7 +67,8 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 
 	invoker := NewInvoker(gatewayFunctionPath,
 		MakeClient(config.UpstreamTimeout),
-		config.PrintResponse)
+		config.PrintResponse,
+		config.Debug)
 
 	subs := []ResponseSubscriber{}
 
@@ -132,10 +136,10 @@ func (c *Controller) BeginMapBuilder() {
 	}
 
 	ticker := time.NewTicker(c.Config.RebuildInterval)
-	go synchronizeLookups(ticker, &lookupBuilder, c.TopicMap)
+	go c.synchronizeLookups(ticker, &lookupBuilder, c.TopicMap)
 }
 
-func synchronizeLookups(ticker *time.Ticker,
+func (c *Controller) synchronizeLookups(ticker *time.Ticker,
 	lookupBuilder *FunctionLookupBuilder,
 	topicMap *TopicMap) {
 
@@ -144,7 +148,11 @@ func synchronizeLookups(ticker *time.Ticker,
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.Println("Syncing topic map")
+
+		if c.Config.Debug {
+			log.Println("Syncing topic map")
+		}
+
 		topicMap.Sync(&lookups)
 	}
 
