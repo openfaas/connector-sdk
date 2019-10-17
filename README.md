@@ -14,3 +14,10 @@ Read [my Tweet](https://twitter.com/alexellisuk/status/1060956781206212608) abou
 
 OpenFaaS Docs: [Triggers](https://docs.openfaas.com/reference/triggers/)
 
+### Development
+
+To test your changes, please run `make`
+
+```sh
+make
+```
