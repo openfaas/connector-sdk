@@ -76,8 +76,7 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 
 	invoker := NewInvoker(gatewayFunctionPath,
 		MakeClient(config.UpstreamTimeout),
-		config.PrintResponse,
-		config.PrintSync)
+		config.PrintResponse)
 
 	subs := []ResponseSubscriber{}
 
@@ -136,12 +135,7 @@ func (c *controller) InvokeWithContext(ctx context.Context, topic string, messag
 
 // BeginMapBuilder begins to build a map of function->topic by
 // querying the API gateway.
-<<<<<<< HEAD
-func (c *Controller) BeginMapBuilder() {
-=======
 func (c *controller) BeginMapBuilder() {
-
->>>>>>> controller-interface
 	lookupBuilder := FunctionLookupBuilder{
 		GatewayURL:     c.Config.GatewayURL,
 		Client:         MakeClient(c.Config.UpstreamTimeout),
@@ -153,7 +147,7 @@ func (c *controller) BeginMapBuilder() {
 	go c.synchronizeLookups(ticker, &lookupBuilder, c.TopicMap)
 }
 
-func (c *Controller) synchronizeLookups(ticker *time.Ticker,
+func (c *controller) synchronizeLookups(ticker *time.Ticker,
 	lookupBuilder *FunctionLookupBuilder,
 	topicMap *TopicMap) {
 
