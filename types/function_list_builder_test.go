@@ -495,3 +495,41 @@ func Test_GetEmptyFunctions(t *testing.T) {
 		t.Errorf("Functions - want: %d items, got: %d", 0, len(functions))
 	}
 }
+
+func Test_GetFunctions_With_404Namespaces_Provider(t *testing.T) {
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not available"))
+		} else {
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = "topic1"
+
+			functions = append(functions, types.FunctionStatus{
+				Name:        "echo",
+				Annotations: &annotationMap,
+				Namespace:   "openfaas-fn",
+			})
+
+			bytesOut, _ := json.Marshal(functions)
+			w.Write(bytesOut)
+		}
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:         client,
+		GatewayURL:     srv.URL,
+		TopicDelimiter: ",",
+	}
+
+	functions, err := builder.getFunctions("")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if len(functions) != 1 {
+		t.Errorf("Functions - want: %d items, got: %d", 1, len(functions))
+	}
+}
