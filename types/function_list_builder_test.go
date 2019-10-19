@@ -408,8 +408,10 @@ func Test_GetNamespaces_ProviderGives404(t *testing.T) {
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
+	want := 0
+	got := len(namespaces)
 	if len(namespaces) != 0 {
-		t.Errorf("Namespaces - want: %d, got: %d", 2, len(namespaces))
+		t.Errorf("Namespaces when 404, want %d, but got: %d", want, got)
 	}
 }
 
