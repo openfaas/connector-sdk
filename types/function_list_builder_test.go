@@ -392,6 +392,27 @@ func Test_GetNamespaces(t *testing.T) {
 	}
 }
 
+func Test_GetNamespaces_ProviderGives404(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Not available"))
+	}))
+
+	client := srv.Client()
+	builder := FunctionLookupBuilder{
+		Client:     client,
+		GatewayURL: srv.URL,
+	}
+
+	namespaces, err := builder.getNamespaces()
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if len(namespaces) != 0 {
+		t.Errorf("Namespaces - want: %d, got: %d", 2, len(namespaces))
+	}
+}
+
 func Test_GetFunctions(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

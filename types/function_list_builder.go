@@ -48,14 +48,16 @@ func (s *FunctionLookupBuilder) getNamespaces() ([]string, error) {
 		defer res.Body.Close()
 	}
 
-	bytesOut, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return namespaces, err
-	}
+	if res.StatusCode != http.StatusNotFound {
+		bytesOut, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return namespaces, err
+		}
 
-	err = json.Unmarshal(bytesOut, &namespaces)
-	if err != nil {
-		return namespaces, err
+		err = json.Unmarshal(bytesOut, &namespaces)
+		if err != nil {
+			return namespaces, err
+		}
 	}
 
 	return namespaces, err
