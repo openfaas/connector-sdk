@@ -3,7 +3,9 @@
 
 package types
 
-import "sync"
+import (
+	"sync"
+)
 
 func NewTopicMap() TopicMap {
 	lookup := make(map[string][]string)
