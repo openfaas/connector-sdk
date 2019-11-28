@@ -66,7 +66,7 @@ type controller struct {
 	Subscribers []ResponseSubscriber
 
 	// Lock used for synchronizing subscribers
-	Lock *sync.RWMutex
+	Lock sync.RWMutex
 }
 
 // NewController create a new connector SDK controller
@@ -88,7 +88,6 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 		TopicMap:    &topicMap,
 		Credentials: credentials,
 		Subscribers: subs,
-		Lock:        &sync.RWMutex{},
 	}
 
 	if config.PrintResponse {
