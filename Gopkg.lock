@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:f74e36b9c7f0fcf4d73483a71d873672ebc8a309c57c273af7e11f6f4e32654e"
+  name = "github.com/openfaas-incubator/connector-sdk"
+  packages = ["types"]
+  pruneopts = "UT"
+  revision = "193b73292e32864286853efeccbc5190b5d3c84d"
+  version = "0.5.3"
+
+[[projects]]
   digest = "1:63153ec3ac1c4e93e615b6f5b271a35ad8ced327eba70530903edac0b1f3e652"
   name = "github.com/openfaas/faas-provider"
   packages = [
@@ -24,6 +32,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/openfaas-incubator/connector-sdk/types",
     "github.com/openfaas/faas-provider/auth",
     "github.com/openfaas/faas-provider/types",
     "github.com/pkg/errors",

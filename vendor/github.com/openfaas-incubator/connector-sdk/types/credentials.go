@@ -1,17 +1,11 @@
 package types
 
 import (
-	"log"
 	"os"
 
 	"github.com/openfaas/faas-provider/auth"
 )
 
-// GetCredentials returns a pointer to basic auth credentials using environment
-// variable lookup for runtime secrets retrieved via "secret_mount_path"
-// environment variable.
-//
-// It panics if credentials cannot be retrieved.
 func GetCredentials() *auth.BasicAuthCredentials {
 	var credentials *auth.BasicAuthCredentials
 
@@ -26,7 +20,7 @@ func GetCredentials() *auth.BasicAuthCredentials {
 
 			res, err := reader.Read()
 			if err != nil {
-				log.Fatalln(err)
+				panic(err)
 			}
 			credentials = res
 		}
