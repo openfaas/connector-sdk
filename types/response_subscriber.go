@@ -1,3 +1,6 @@
+// Copyright (c) OpenFaaS Author(s) 2019. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 package types
 
 // ResponseSubscriber enables connector or another client in connector
