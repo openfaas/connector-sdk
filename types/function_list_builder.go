@@ -54,6 +54,10 @@ func (s *FunctionLookupBuilder) getNamespaces() ([]string, error) {
 			return namespaces, err
 		}
 
+		if len(bytesOut) == 0 {
+			return namespaces, nil
+		}
+
 		err = json.Unmarshal(bytesOut, &namespaces)
 		if err != nil {
 			return namespaces, err
