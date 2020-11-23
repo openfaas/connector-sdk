@@ -1,2 +1,5 @@
-build:
-	go test ./types/ && go build ./cmd/tester
+test:
+	go test ./types/
+
+tester:
+	go build ./cmd/tester
