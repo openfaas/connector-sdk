@@ -28,10 +28,11 @@ func main() {
 	}
 
 	config := &types.ControllerConfig{
-		RebuildInterval:   time.Millisecond * 1000,
-		GatewayURL:        gateway,
-		PrintResponse:     true,
-		PrintResponseBody: true,
+		RebuildInterval:         time.Millisecond * 1000,
+		GatewayURL:              gateway,
+		PrintResponse:           true,
+		PrintResponseBody:       true,
+		AsyncFunctionInvocation: false,
 	}
 
 	controller := types.NewController(creds, config)
