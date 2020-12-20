@@ -182,7 +182,7 @@ func (c *controller) Topics() []string {
 }
 
 func gatewayRoute(config *ControllerConfig) string {
-	if config.AsyncFunctionInvocation == true {
+	if config.AsyncFunctionInvocation {
 		return fmt.Sprintf("%s/%s", config.GatewayURL, "async-function")
 	}
 	return fmt.Sprintf("%s/%s", config.GatewayURL, "function")

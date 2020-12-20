@@ -15,6 +15,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Invoker is used to send requests to functions. Responses are
+// returned via the Responses channel.
 type Invoker struct {
 	PrintResponse bool
 	Client        *http.Client
@@ -22,6 +24,8 @@ type Invoker struct {
 	Responses     chan InvokerResponse
 }
 
+// InvokerResponse is a wrapper to contain the response or error the Invoker
+// receives from the function. Networking errors wil be found in the Error field.
 type InvokerResponse struct {
 	Context  context.Context
 	Body     *[]byte
@@ -32,6 +36,7 @@ type InvokerResponse struct {
 	Function string
 }
 
+// NewInvoker constructs an Invoker instance
 func NewInvoker(gatewayURL string, client *http.Client, printResponse bool) *Invoker {
 	return &Invoker{
 		PrintResponse: printResponse,
@@ -85,8 +90,11 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 
 func invokefunction(ctx context.Context, c *http.Client, gwURL string, reader io.Reader) (*[]byte, int, *http.Header, error) {
 
-	httpReq, _ := http.NewRequest(http.MethodPost, gwURL, reader)
-	httpReq.WithContext(ctx)
+	httpReq, err := http.NewRequest(http.MethodPost, gwURL, reader)
+	if err != nil {
+		return nil, http.StatusServiceUnavailable, nil, err
+	}
+	httpReq = httpReq.WithContext(ctx)
 
 	if httpReq.Body != nil {
 		defer httpReq.Body.Close()
