@@ -38,6 +38,9 @@ type ControllerConfig struct {
 
 	// PrintSync indicates whether the sync should be logged.
 	PrintSync bool
+
+	// Namespace defines the namespace of the functions to be mapped and invoked. If empty, all namespaces will be used.
+	Namespace string
 }
 
 // Controller is used to invoke functions on a per-topic basis and to subscribe to responses returned by said functions.
@@ -145,6 +148,7 @@ func (c *controller) BeginMapBuilder() {
 		Client:         MakeClient(c.Config.UpstreamTimeout),
 		Credentials:    c.Credentials,
 		TopicDelimiter: c.Config.TopicAnnotationDelimiter,
+		Namespace:      c.Config.Namespace,
 	}
 
 	ticker := time.NewTicker(c.Config.RebuildInterval)
