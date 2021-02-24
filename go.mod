@@ -1,4 +1,4 @@
-module github.com/openfaas/connector-sdk
+module github.com/flusflas/connector-sdk
 
 go 1.13
 

@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/openfaas/connector-sdk/types"
+	"github.com/flusflas/connector-sdk/types"
 	"github.com/openfaas/faas-provider/auth"
 )
 
