@@ -111,13 +111,19 @@ func (s *FunctionLookupBuilder) getFunctions(namespace string) ([]types.Function
 // advertised to receive messages on said topic
 func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	var (
-		err error
+		err        error
+		namespaces []string
 	)
 
-	namespaces, err := s.getNamespaces()
-	if err != nil {
-		return map[string][]string{}, err
+	if s.Namespace == "" {
+		namespaces, err = s.getNamespaces()
+		if err != nil {
+			return map[string][]string{}, err
+		}
+	} else {
+		namespaces = []string{s.Namespace}
 	}
+
 	serviceMap := make(map[string][]string)
 
 	if len(namespaces) == 0 {
@@ -129,11 +135,6 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 		serviceMap = buildServiceMap(&functions, s.TopicDelimiter, namespace, serviceMap)
 	} else {
 		for _, namespace := range namespaces {
-			// If a namespace has been selected, list only the functions from it
-			if s.Namespace != "" && s.Namespace != namespace {
-				continue
-			}
-
 			functions, err := s.getFunctions(namespace)
 			if err != nil {
 				return map[string][]string{}, err
