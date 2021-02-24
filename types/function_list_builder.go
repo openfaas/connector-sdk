@@ -22,6 +22,7 @@ type FunctionLookupBuilder struct {
 	Client         *http.Client
 	Credentials    *auth.BasicAuthCredentials
 	TopicDelimiter string
+	Namespace      string
 }
 
 //getNamespaces get openfaas namespaces
@@ -110,13 +111,19 @@ func (s *FunctionLookupBuilder) getFunctions(namespace string) ([]types.Function
 // advertised to receive messages on said topic
 func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	var (
-		err error
+		err        error
+		namespaces []string
 	)
 
-	namespaces, err := s.getNamespaces()
-	if err != nil {
-		return map[string][]string{}, err
+	if s.Namespace == "" {
+		namespaces, err = s.getNamespaces()
+		if err != nil {
+			return map[string][]string{}, err
+		}
+	} else {
+		namespaces = []string{s.Namespace}
 	}
+
 	serviceMap := make(map[string][]string)
 
 	if len(namespaces) == 0 {

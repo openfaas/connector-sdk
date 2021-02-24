@@ -49,6 +49,7 @@ func TestBuildSingleMatchingFunction(t *testing.T) {
 		t.Errorf("Lookup - want: %d items, got: %d", 1, len(lookup))
 	}
 }
+
 func Test_Build_SingleFunctionNoDelimiter(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -493,5 +494,82 @@ func Test_GetEmptyFunctions(t *testing.T) {
 	}
 	if len(functions) != 0 {
 		t.Errorf("Functions - want: %d items, got: %d", 0, len(functions))
+	}
+}
+
+func TestBuildWithNamespace(t *testing.T) {
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/system/namespaces" {
+			namespaces := []string{"openfaas-fn", "namespace2"}
+			bytesOut, _ := json.Marshal(namespaces)
+			_, _ = w.Write(bytesOut)
+		} else if r.URL.Path == "/system/functions" {
+			functions := []types.FunctionStatus{}
+			annotationMap := make(map[string]string)
+			annotationMap["topic"] = "topic1"
+
+			switch r.URL.Query().Get("namespace") {
+			case "openfaas-fn":
+				functions = append(functions, types.FunctionStatus{
+					Name:        "echo",
+					Annotations: &annotationMap,
+					Namespace:   "openfaas-fn",
+				})
+			case "namespace2":
+				functions = append(functions, types.FunctionStatus{
+					Name:        "figlet",
+					Annotations: &annotationMap,
+					Namespace:   "namespace2",
+				})
+			}
+			bytesOut, _ := json.Marshal(functions)
+			_, _ = w.Write(bytesOut)
+		}
+	}))
+
+	tests := []struct {
+		name              string
+		namespace         string
+		expectedFunctions []string
+	}{
+		{
+			name:              "no namespace filter",
+			namespace:         "",
+			expectedFunctions: []string{"echo.openfaas-fn", "figlet.namespace2"},
+		},
+		{
+			name:              "filter by namespace",
+			namespace:         "namespace2",
+			expectedFunctions: []string{"figlet.namespace2"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := srv.Client()
+			builder := FunctionLookupBuilder{
+				Client:         client,
+				GatewayURL:     srv.URL,
+				TopicDelimiter: ",",
+				Namespace:      test.namespace,
+			}
+
+			lookup, err := builder.Build()
+			if err != nil {
+				t.Errorf("%s", err)
+			}
+			if len(lookup) != 1 {
+				t.Errorf("Lookup - want: %d items, got: %d", 1, len(lookup))
+			}
+			if len(lookup["topic1"]) != len(test.expectedFunctions) {
+				t.Errorf("Lookup - want: %d items, got: %d", len(test.expectedFunctions), len(lookup["topic1"]))
+			}
+			for i, fn := range lookup["topic1"] {
+				if fn != test.expectedFunctions[i] {
+					t.Errorf("Lookup - want: %s, got: %s", test.expectedFunctions[i], fn)
+				}
+			}
+		})
 	}
 }
