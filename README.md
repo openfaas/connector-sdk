@@ -1,5 +1,21 @@
 ## connector-sdk
 
+> ### About this fork
+> 
+> This repository is a fork of the  [OpenFaaS Connector SDK](https://github.com/openfaas/connector-sdk)
+> with support for **namespace filtering**, useful in multi-tenant environments.
+> 
+> If a namespace is set in the `ControllerConfig` instance, only the functions
+> in that namespace will be mapped. Otherwise, all functions will be mapped
+> (regardless of their namespace).
+> ```go
+> config := &types.ControllerConfig{
+>   RebuildInterval:          time.Seconds * 10,
+>   GatewayURL:               gatewayURL,
+>   Namespace:                namespace,
+> }
+> ```
+
 The connector-sdk is a library written in Go that you can use to create event-connectors for OpenFaaS functions.
 
 How it works:
