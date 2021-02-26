@@ -36,6 +36,9 @@ type ControllerConfig struct {
 	// AsyncFunctionInvocation if true points to the asynchronous function route
 	AsyncFunctionInvocation bool
 
+	// AsyncFunctionCallbackURL defines the callback URL for asynchronous invocations
+	AsyncFunctionCallbackURL string
+
 	// PrintSync indicates whether the sync should be logged.
 	PrintSync bool
 
@@ -81,6 +84,7 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 	gatewayFunctionPath := gatewayRoute(config)
 
 	invoker := NewInvoker(gatewayFunctionPath,
+		config.AsyncFunctionCallbackURL,
 		MakeClient(config.UpstreamTimeout),
 		config.PrintResponse)
 
