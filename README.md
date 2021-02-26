@@ -3,16 +3,27 @@
 > ### About this fork
 > 
 > This repository is a fork of the  [OpenFaaS Connector SDK](https://github.com/openfaas/connector-sdk)
-> with support for **namespace filtering**, useful in multi-tenant environments.
+> with some features and changes.
 > 
-> If a namespace is set in the `ControllerConfig` instance, only the functions
-> in that namespace will be mapped. Otherwise, all functions will be mapped
-> (regardless of their namespace).
+> #### Namespace filtering
+> This is useful in multi-tenant environments. If a namespace is set in the
+> `ControllerConfig` instance, only the functions in that namespace will be
+> mapped. Otherwise, all functions will be mapped (regardless of their
+> namespace).
 > ```go
 > config := &types.ControllerConfig{
->   RebuildInterval:          time.Seconds * 10,
->   GatewayURL:               gatewayURL,
+>   ...
 >   Namespace:                namespace,
+> }
+> ```
+> 
+> #### Callback URL for asynchronous invocations
+> A callback URL can be set using `AsyncFunctionCallbackURL`:
+> ```go
+> config := &types.ControllerConfig{
+>   ...
+>   AsyncFunctionInvocation:  true,
+>   AsyncFunctionCallbackURL: asyncCallbackURL,
 > }
 > ```
 
@@ -83,10 +94,10 @@ If you expect many requests in a short period of time, you may want to defer the
 Set the following in `ControllerConfig`:
 
 ```go
-	config := &types.ControllerConfig{
-        ...
-		AsyncFunctionInvocation: true,
-	}
+config := &types.ControllerConfig{
+    ...
+    AsyncFunctionInvocation: true,
+}
 ```
 
 View the code: [cmd/tester/main.go](cmd/tester/main.go)
