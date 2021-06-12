@@ -73,6 +73,16 @@ Set the following in `ControllerConfig`:
 	}
 ```
 
+If you need to use the `Content-Type` header to validate or to check when it invoke the function you can set the `Content-Type`
+in `ControllerConfig`:
+
+```go
+	config := &types.ControllerConfig{
+        ...
+		ContentType: "application/json",
+	}
+```
+
 View the code: [cmd/tester/main.go](cmd/tester/main.go)
 
 ## License

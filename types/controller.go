@@ -38,6 +38,10 @@ type ControllerConfig struct {
 
 	// PrintSync indicates whether the sync should be logged.
 	PrintSync bool
+
+	// ContentType defines which content type will be set in the header to inkoke the function. i.e "application/json".
+	// Optional, if not set the Content-Type header will not be set.
+	ContentType string
 }
 
 // Controller is used to invoke functions on a per-topic basis and to subscribe to responses returned by said functions.
@@ -79,6 +83,7 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 
 	invoker := NewInvoker(gatewayFunctionPath,
 		MakeClient(config.UpstreamTimeout),
+		config.ContentType,
 		config.PrintResponse)
 
 	subs := []ResponseSubscriber{}
