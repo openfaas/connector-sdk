@@ -33,6 +33,7 @@ func main() {
 		PrintResponse:           true,
 		PrintResponseBody:       true,
 		AsyncFunctionInvocation: false,
+		ContentType:             "text/plain",
 	}
 
 	controller := types.NewController(creds, config)
