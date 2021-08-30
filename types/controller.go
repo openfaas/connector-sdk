@@ -42,6 +42,9 @@ type ControllerConfig struct {
 	// ContentType defines which content type will be set in the header to inkoke the function. i.e "application/json".
 	// Optional, if not set the Content-Type header will not be set.
 	ContentType string
+
+	// BasicAuth whether basic auth is enabled or disabled
+	BasicAuth bool
 }
 
 // Controller is used to invoke functions on a per-topic basis and to subscribe to responses returned by said functions.
