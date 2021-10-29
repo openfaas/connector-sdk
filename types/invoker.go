@@ -69,7 +69,7 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 		gwURL := fmt.Sprintf("%s/%s", i.GatewayURL, matchedFunction)
 		reader := bytes.NewReader(*message)
 
-		body, statusCode, header, doErr := invokefunction(ctx, i.Client, gwURL, i.ContentType, reader, headers)
+		body, statusCode, header, doErr := invokefunction(ctx, i.Client, gwURL, i.ContentType, topic, reader, headers)
 
 		if doErr != nil {
 			i.Responses <- InvokerResponse{
@@ -90,12 +90,17 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 	}
 }
 
-func invokefunction(ctx context.Context, c *http.Client, gwURL, contentType string, reader io.Reader, headers http.Header) (*[]byte, int, *http.Header, error) {
+func invokefunction(ctx context.Context, c *http.Client, gwURL, contentType, topic string, reader io.Reader, headers http.Header) (*[]byte, int, *http.Header, error) {
 
 	httpReq, err := http.NewRequest(http.MethodPost, gwURL, reader)
 	if err != nil {
 		return nil, http.StatusServiceUnavailable, nil, err
 	}
+
+	if contentType != "" {
+		httpReq.Header.Set("Content-Type", contentType)
+	}
+	httpReq.Header.Add("X-Topic", topic)
 
 	for k, values := range headers {
 		for _, value := range values {
@@ -104,13 +109,8 @@ func invokefunction(ctx context.Context, c *http.Client, gwURL, contentType stri
 	}
 
 	httpReq = httpReq.WithContext(ctx)
-
 	if httpReq.Body != nil {
 		defer httpReq.Body.Close()
-	}
-
-	if contentType != "" {
-		httpReq.Header.Set("Content-Type", contentType)
 	}
 
 	var body *[]byte
