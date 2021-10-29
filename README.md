@@ -32,12 +32,16 @@ The tester example doesn't have an event subscription, but a for loop and sleep 
 Within the event subscriber code, you should call "Invoke()", passing in the topic and message. The functions advertise their "topic".
 
 ```go
+
+	additionalHeaders := http.Header{}
+	additionalHeaders.Add("X-Served-By", "cmd/tester")
+
 	// Simulate events emitting from queue/pub-sub
 	for {
-		log.Printf("Invoking on topic vm.powered.on - %s\n", gateway)
+		log.Printf("Invoking on topic payment - %s\n", gateway)
 		time.Sleep(2 * time.Second)
 		data := []byte("test " + time.Now().String())
-		controller.Invoke("vm.powered.on", &data)
+		controller.Invoke("payment", &data, additionalHeaders)
 	}
 ```
 

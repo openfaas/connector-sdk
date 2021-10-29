@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -50,8 +51,8 @@ type ControllerConfig struct {
 // Controller is used to invoke functions on a per-topic basis and to subscribe to responses returned by said functions.
 type Controller interface {
 	Subscribe(subscriber ResponseSubscriber)
-	Invoke(topic string, message *[]byte)
-	InvokeWithContext(ctx context.Context, topic string, message *[]byte)
+	Invoke(topic string, message *[]byte, headers http.Header)
+	InvokeWithContext(ctx context.Context, topic string, message *[]byte, headers http.Header)
 	BeginMapBuilder()
 	Topics() []string
 }
@@ -134,14 +135,14 @@ func (c *controller) Subscribe(subscriber ResponseSubscriber) {
 
 // Invoke attempts to invoke any functions which match the
 // topic the incoming message was published on.
-func (c *controller) Invoke(topic string, message *[]byte) {
-	c.InvokeWithContext(context.Background(), topic, message)
+func (c *controller) Invoke(topic string, message *[]byte, headers http.Header) {
+	c.InvokeWithContext(context.Background(), topic, message, headers)
 }
 
 // InvokeWithContext attempts to invoke any functions which match the topic
 // the incoming message was published on while propagating context.
-func (c *controller) InvokeWithContext(ctx context.Context, topic string, message *[]byte) {
-	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message)
+func (c *controller) InvokeWithContext(ctx context.Context, topic string, message *[]byte, headers http.Header) {
+	c.Invoker.InvokeWithContext(ctx, c.TopicMap, topic, message, headers)
 }
 
 // BeginMapBuilder begins to build a map of function->topic by

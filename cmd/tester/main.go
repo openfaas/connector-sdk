@@ -5,7 +5,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/openfaas/connector-sdk/types"
@@ -28,7 +30,7 @@ func main() {
 	}
 
 	config := &types.ControllerConfig{
-		RebuildInterval:         time.Millisecond * 1000,
+		RebuildInterval:         time.Second * 10,
 		GatewayURL:              gateway,
 		PrintResponse:           true,
 		PrintResponseBody:       true,
@@ -43,12 +45,22 @@ func main() {
 
 	controller.BeginMapBuilder()
 
+	additionalHeaders := http.Header{}
+	additionalHeaders.Add("X-Served-By", "cmd/tester")
+
 	// Simulate events emitting from queue/pub-sub
+	messageID := 0
 	for {
-		log.Printf("Invoking on topic vm.powered.on - %s\n", gateway)
-		time.Sleep(2 * time.Second)
-		data := []byte("test " + time.Now().String())
-		controller.Invoke("vm.powered.on", &data)
+		log.Printf("Emitting event on topic payment.received - %s\n", gateway)
+		time.Sleep(5 * time.Second)
+
+		// Add a de-dupe header to the message
+		additionalHeaders.Add("X-Message-Id", fmt.Sprintf("%d", messageID))
+
+		eventData := []byte("test " + time.Now().String())
+		controller.Invoke("payment.received", &eventData, additionalHeaders)
+
+		messageID++
 	}
 }
 
