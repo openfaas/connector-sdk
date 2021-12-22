@@ -25,8 +25,11 @@ type ControllerConfig struct {
 	// PrintResponse if true prints the function responses
 	PrintResponse bool
 
-	// PrintResponseBody if true prints the function response body to stdout
+	// PrintResponseBody prints the function's response body to stdout
 	PrintResponseBody bool
+
+	// PrintRequestBody prints the request's body to stdout.
+	PrintRequestBody bool
 
 	// RebuildInterval the interval at which the topic map is rebuilt
 	RebuildInterval time.Duration
@@ -88,7 +91,8 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 	invoker := NewInvoker(gatewayFunctionPath,
 		MakeClient(config.UpstreamTimeout),
 		config.ContentType,
-		config.PrintResponse)
+		config.PrintResponse,
+		config.PrintRequestBody)
 
 	subs := []ResponseSubscriber{}
 

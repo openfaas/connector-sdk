@@ -11,14 +11,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 // Invoker is used to send requests to functions. Responses are
 // returned via the Responses channel.
 type Invoker struct {
 	PrintResponse bool
+	PrintRequest  bool
 	Client        *http.Client
 	GatewayURL    string
 	ContentType   string
@@ -38,9 +37,10 @@ type InvokerResponse struct {
 }
 
 // NewInvoker constructs an Invoker instance
-func NewInvoker(gatewayURL string, client *http.Client, contentType string, printResponse bool) *Invoker {
+func NewInvoker(gatewayURL string, client *http.Client, contentType string, printResponse, printRequest bool) *Invoker {
 	return &Invoker{
 		PrintResponse: printResponse,
+		PrintRequest:  printRequest,
 		Client:        client,
 		GatewayURL:    gatewayURL,
 		ContentType:   contentType,
@@ -69,12 +69,15 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 		gwURL := fmt.Sprintf("%s/%s", i.GatewayURL, matchedFunction)
 		reader := bytes.NewReader(*message)
 
-		body, statusCode, header, doErr := invokefunction(ctx, i.Client, gwURL, i.ContentType, topic, reader, headers)
+		if i.PrintRequest {
+			fmt.Printf("[invoke] %s => %s\n\t%s\n", topic, matchedFunction, string(*message))
+		}
 
-		if doErr != nil {
+		body, statusCode, header, err := invokefunction(ctx, i.Client, gwURL, i.ContentType, topic, reader, headers)
+		if err != nil {
 			i.Responses <- InvokerResponse{
 				Context: ctx,
-				Error:   errors.Wrap(doErr, fmt.Sprintf("unable to invoke %s", matchedFunction)),
+				Error:   fmt.Errorf("unable to invoke %s, error: %w", matchedFunction, err),
 			}
 			continue
 		}

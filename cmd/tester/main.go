@@ -33,6 +33,7 @@ func main() {
 		RebuildInterval:         time.Second * 10,
 		GatewayURL:              gateway,
 		PrintResponse:           true,
+		PrintRequestBody:        true,
 		PrintResponseBody:       true,
 		AsyncFunctionInvocation: false,
 		ContentType:             "text/plain",
