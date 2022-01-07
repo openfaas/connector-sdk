@@ -80,6 +80,7 @@ func (s *FunctionLookupBuilder) getNamespaces() ([]string, error) {
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
+
 	bytesOut, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return namespaces, err
@@ -94,7 +95,7 @@ func (s *FunctionLookupBuilder) getNamespaces() ([]string, error) {
 	}
 
 	if err := json.Unmarshal(bytesOut, &namespaces); err != nil {
-		return namespaces, err
+		return namespaces, fmt.Errorf("unable to marshal to JSON: %s, error: %w", string(bytesOut), err)
 	}
 
 	return namespaces, err
