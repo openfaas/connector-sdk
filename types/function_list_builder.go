@@ -93,8 +93,7 @@ func (s *FunctionLookupBuilder) getNamespaces() ([]string, error) {
 		return namespaces, nil
 	}
 
-	err = json.Unmarshal(bytesOut, &namespaces)
-	if err != nil {
+	if err := json.Unmarshal(bytesOut, &namespaces); err != nil {
 		return namespaces, err
 	}
 
@@ -134,9 +133,7 @@ func (s *FunctionLookupBuilder) getFunctions(namespace string) ([]types.Function
 	bytesOut, _ := ioutil.ReadAll(res.Body)
 
 	functions := []types.FunctionStatus{}
-	err = json.Unmarshal(bytesOut, &functions)
-
-	if err != nil {
+	if err := json.Unmarshal(bytesOut, &functions); err != nil {
 		return []types.FunctionStatus{},
 			fmt.Errorf("unable to unmarshal value: %q, error: %w", string(bytesOut), err)
 	}
