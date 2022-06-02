@@ -11,16 +11,16 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 // Invoker is used to send requests to functions. Responses are
 // returned via the Responses channel.
 type Invoker struct {
 	PrintResponse bool
+	PrintRequest  bool
 	Client        *http.Client
 	GatewayURL    string
+	ContentType   string
 	Responses     chan InvokerResponse
 }
 
@@ -37,22 +37,24 @@ type InvokerResponse struct {
 }
 
 // NewInvoker constructs an Invoker instance
-func NewInvoker(gatewayURL string, client *http.Client, printResponse bool) *Invoker {
+func NewInvoker(gatewayURL string, client *http.Client, contentType string, printResponse, printRequest bool) *Invoker {
 	return &Invoker{
 		PrintResponse: printResponse,
+		PrintRequest:  printRequest,
 		Client:        client,
 		GatewayURL:    gatewayURL,
+		ContentType:   contentType,
 		Responses:     make(chan InvokerResponse),
 	}
 }
 
 // Invoke triggers a function by accessing the API Gateway
-func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte) {
-	i.InvokeWithContext(context.Background(), topicMap, topic, message)
+func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte, headers http.Header) {
+	i.InvokeWithContext(context.Background(), topicMap, topic, message, headers)
 }
 
 //InvokeWithContext triggers a function by accessing the API Gateway while propagating context
-func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte) {
+func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte, headers http.Header) {
 	if len(*message) == 0 {
 		i.Responses <- InvokerResponse{
 			Context: ctx,
@@ -67,12 +69,15 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 		gwURL := fmt.Sprintf("%s/%s", i.GatewayURL, matchedFunction)
 		reader := bytes.NewReader(*message)
 
-		body, statusCode, header, doErr := invokefunction(ctx, i.Client, gwURL, reader)
+		if i.PrintRequest {
+			fmt.Printf("[invoke] %s => %s\n\t%s\n", topic, matchedFunction, string(*message))
+		}
 
-		if doErr != nil {
+		body, statusCode, header, err := invokefunction(ctx, i.Client, gwURL, i.ContentType, topic, reader, headers)
+		if err != nil {
 			i.Responses <- InvokerResponse{
 				Context: ctx,
-				Error:   errors.Wrap(doErr, fmt.Sprintf("unable to invoke %s", matchedFunction)),
+				Error:   fmt.Errorf("unable to invoke %s, error: %w", matchedFunction, err),
 			}
 			continue
 		}
@@ -88,14 +93,25 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 	}
 }
 
-func invokefunction(ctx context.Context, c *http.Client, gwURL string, reader io.Reader) (*[]byte, int, *http.Header, error) {
+func invokefunction(ctx context.Context, c *http.Client, gwURL, contentType, topic string, reader io.Reader, headers http.Header) (*[]byte, int, *http.Header, error) {
 
 	httpReq, err := http.NewRequest(http.MethodPost, gwURL, reader)
 	if err != nil {
 		return nil, http.StatusServiceUnavailable, nil, err
 	}
-	httpReq = httpReq.WithContext(ctx)
 
+	if contentType != "" {
+		httpReq.Header.Set("Content-Type", contentType)
+	}
+	httpReq.Header.Add("X-Topic", topic)
+
+	for k, values := range headers {
+		for _, value := range values {
+			httpReq.Header.Add(k, value)
+		}
+	}
+
+	httpReq = httpReq.WithContext(ctx)
 	if httpReq.Body != nil {
 		defer httpReq.Body.Close()
 	}

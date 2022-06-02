@@ -5,8 +5,10 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/openfaas/faas-provider/types"
@@ -405,14 +407,14 @@ func Test_GetNamespaces_ProviderGives404(t *testing.T) {
 		GatewayURL: srv.URL,
 	}
 
-	namespaces, err := builder.getNamespaces()
-	if err != nil {
-		t.Errorf("%s", err.Error())
+	_, err := builder.getNamespaces()
+	if err == nil {
+		t.Fatalf("expected error, but got none")
 	}
-	want := 0
-	got := len(namespaces)
-	if len(namespaces) != 0 {
-		t.Errorf("Namespaces when 404, want %d, but got: %d", want, got)
+
+	wantStr := "unable to marshal to JSON"
+	if strings.Contains(err.Error(), wantStr) == false {
+		fmt.Errorf("want error to contain %s, but got %s", wantStr, err.Error())
 	}
 }
 
