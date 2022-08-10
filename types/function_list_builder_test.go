@@ -5,7 +5,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -413,7 +412,7 @@ func Test_GetNamespaces_ProviderGives404(t *testing.T) {
 
 	wantStr := "unable to marshal to JSON"
 	if strings.Contains(err.Error(), wantStr) == false {
-		fmt.Errorf("want error to contain %s, but got %s", wantStr, err.Error())
+		t.Fatalf("want error to contain %s, but got %s", wantStr, err.Error())
 	}
 }
 
