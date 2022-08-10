@@ -16,11 +16,17 @@ import (
 
 func main() {
 
-	var username, password, gateway string
+	var (
+		username,
+		password,
+		gateway,
+		topic string
+	)
 
 	flag.StringVar(&username, "username", "admin", "username")
 	flag.StringVar(&password, "password", "", "password")
 	flag.StringVar(&gateway, "gateway", "http://127.0.0.1:8080", "gateway")
+	flag.StringVar(&topic, "topic", "payment.received", "Sample topic name to emit from timer")
 
 	flag.Parse()
 
@@ -47,7 +53,7 @@ func main() {
 	controller.BeginMapBuilder()
 
 	additionalHeaders := http.Header{}
-	additionalHeaders.Add("X-Served-By", "cmd/tester")
+	additionalHeaders.Add("X-Connector", "cmd/tester")
 
 	// Simulate events emitting from queue/pub-sub
 	messageID := 0
@@ -59,7 +65,7 @@ func main() {
 		additionalHeaders.Add("X-Message-Id", fmt.Sprintf("%d", messageID))
 
 		eventData := []byte("test " + time.Now().String())
-		controller.Invoke("payment.received", &eventData, additionalHeaders)
+		controller.Invoke(topic, &eventData, additionalHeaders)
 
 		messageID++
 	}
@@ -76,6 +82,6 @@ func (ResponseReceiver) Response(res types.InvokerResponse) {
 	if res.Error != nil {
 		log.Printf("tester got error: %s", res.Error.Error())
 	} else {
-		log.Printf("tester got result: [%d] %s => %s (%d) bytes", res.Status, res.Topic, res.Function, len(*res.Body))
+		log.Printf("tester got result: [%d] %s => %s (%d) bytes (%fs)", res.Status, res.Topic, res.Function, len(*res.Body), res.Duration.Seconds())
 	}
 }

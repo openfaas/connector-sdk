@@ -108,7 +108,6 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 	}
 
 	if config.PrintResponse {
-		// printer := &{}
 		c.Subscribe(&ResponsePrinter{config.PrintResponseBody})
 	}
 
