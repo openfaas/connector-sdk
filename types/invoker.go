@@ -23,6 +23,7 @@ type Invoker struct {
 	GatewayURL    string
 	ContentType   string
 	Responses     chan InvokerResponse
+	UserAgent     string
 }
 
 // InvokerResponse is a wrapper to contain the response or error the Invoker
@@ -39,7 +40,7 @@ type InvokerResponse struct {
 }
 
 // NewInvoker constructs an Invoker instance
-func NewInvoker(gatewayURL string, client *http.Client, contentType string, printResponse, printRequest bool) *Invoker {
+func NewInvoker(gatewayURL string, client *http.Client, contentType string, printResponse, printRequest bool, userAgent string) *Invoker {
 	return &Invoker{
 		PrintResponse: printResponse,
 		PrintRequest:  printRequest,
@@ -77,7 +78,7 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 		}
 
 		start := time.Now()
-		body, statusCode, header, err := invoke(ctx, i.Client, gwURL, i.ContentType, topic, reader, headers)
+		body, statusCode, header, err := i.invoke(ctx, i.Client, gwURL, i.ContentType, topic, reader, headers)
 		if err != nil {
 			i.Responses <- InvokerResponse{
 				Context:  ctx,
@@ -99,11 +100,13 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 	}
 }
 
-func invoke(ctx context.Context, c *http.Client, gwURL, contentType, topic string, reader io.Reader, headers http.Header) (*[]byte, int, *http.Header, error) {
+func (i *Invoker) invoke(ctx context.Context, c *http.Client, gwURL, contentType, topic string, reader io.Reader, headers http.Header) (*[]byte, int, *http.Header, error) {
 	req, err := http.NewRequest(http.MethodPost, gwURL, reader)
 	if err != nil {
 		return nil, http.StatusServiceUnavailable, nil, err
 	}
+
+	req.Header.Set("User-Agent", i.UserAgent)
 
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)

@@ -16,10 +16,10 @@ import (
 
 // ControllerConfig configures a connector SDK controller
 type ControllerConfig struct {
-	// UpstreamTimeout controls maximum timeout invoking a function via the gateway
+	// UpstreamTimeout controls maximum timeout for a function invocation, which is done via the gateway
 	UpstreamTimeout time.Duration
 
-	//  GatewayURL is the remote OpenFaaS gateway
+	// GatewayURL is the remote OpenFaaS gateway
 	GatewayURL string
 
 	// PrintResponse if true prints the function responses
@@ -49,6 +49,10 @@ type ControllerConfig struct {
 
 	// BasicAuth whether basic auth is enabled or disabled
 	BasicAuth bool
+
+	// UserAgent defines the user agent to be used in the request to invoke the function, it should be of the format:
+	// company/NAME-connector
+	UserAgent string
 }
 
 // Controller is used to invoke functions on a per-topic basis and to subscribe to responses returned by said functions.
@@ -79,8 +83,8 @@ type controller struct {
 	// operations
 	Subscribers []ResponseSubscriber
 
-	// Lock used for synchronizing subscribers
-	Lock *sync.RWMutex
+	// lock used for synchronizing subscribers
+	lock *sync.RWMutex
 }
 
 // NewController create a new connector SDK controller
@@ -92,7 +96,8 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 		MakeClient(config.UpstreamTimeout),
 		config.ContentType,
 		config.PrintResponse,
-		config.PrintRequestBody)
+		config.PrintRequestBody,
+		config.UserAgent)
 
 	subs := []ResponseSubscriber{}
 
@@ -104,7 +109,7 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 		TopicMap:    &topicMap,
 		Credentials: credentials,
 		Subscribers: subs,
-		Lock:        &sync.RWMutex{},
+		lock:        &sync.RWMutex{},
 	}
 
 	if config.PrintResponse {
@@ -115,11 +120,11 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 		for {
 			res := <-*ch
 
-			controller.Lock.RLock()
+			controller.lock.RLock()
 			for _, sub := range controller.Subscribers {
 				sub.Response(res)
 			}
-			controller.Lock.RUnlock()
+			controller.lock.RUnlock()
 		}
 	}(&invoker.Responses, &c)
 
@@ -131,8 +136,8 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 // Note: it is not possible to Unsubscribe at this point using
 // the API of the controller
 func (c *controller) Subscribe(subscriber ResponseSubscriber) {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.Subscribers = append(c.Subscribers, subscriber)
 }
 

@@ -2,7 +2,10 @@ module github.com/openfaas/connector-sdk
 
 go 1.17
 
-require github.com/openfaas/faas-provider v0.19.0
+require (
+	github.com/alexellis/go-execute v0.5.0
+	github.com/openfaas/faas-provider v0.19.0
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

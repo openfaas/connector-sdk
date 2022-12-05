@@ -4,12 +4,15 @@
 package main
 
 import (
+	b64 "encoding/base64"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	execute "github.com/alexellis/go-execute/pkg/v1"
 	"github.com/openfaas/connector-sdk/types"
 	"github.com/openfaas/faas-provider/auth"
 )
@@ -30,6 +33,10 @@ func main() {
 
 	flag.Parse()
 
+	if len(password) == 0 {
+		password = lookupPasswordViaKubectl()
+	}
+
 	creds := &auth.BasicAuthCredentials{
 		User:     username,
 		Password: password,
@@ -43,6 +50,8 @@ func main() {
 		PrintResponseBody:       true,
 		AsyncFunctionInvocation: false,
 		ContentType:             "text/plain",
+		UserAgent:               "openfaasltd/timer-connector",
+		UpstreamTimeout:         time.Second * 60,
 	}
 
 	controller := types.NewController(creds, config)
@@ -53,22 +62,52 @@ func main() {
 	controller.BeginMapBuilder()
 
 	additionalHeaders := http.Header{}
-	additionalHeaders.Add("X-Connector", "cmd/tester")
+	additionalHeaders.Add("X-Connector", "cmd/timer")
 
 	// Simulate events emitting from queue/pub-sub
+	// by sleeping for 10 seconds between emitting the same message
 	messageID := 0
 	for {
 		log.Printf("Emitting event on topic payment.received - %s\n", gateway)
-		time.Sleep(5 * time.Second)
 
+		h := additionalHeaders.Clone()
 		// Add a de-dupe header to the message
-		additionalHeaders.Add("X-Message-Id", fmt.Sprintf("%d", messageID))
+		h.Add("X-Message-Id", fmt.Sprintf("%d", messageID))
 
 		eventData := []byte("test " + time.Now().String())
-		controller.Invoke(topic, &eventData, additionalHeaders)
+		controller.Invoke(topic, &eventData, h)
 
 		messageID++
+		time.Sleep(10 * time.Second)
 	}
+}
+
+func lookupPasswordViaKubectl() string {
+
+	cmd := execute.ExecTask{
+		Command:      "kubectl",
+		Args:         []string{"get", "secret", "-n", "openfaas", "basic-auth", "-o", "jsonpath='{.data.basic-auth-password}'"},
+		StreamStdio:  false,
+		PrintCommand: false,
+	}
+
+	res, err := cmd.Execute()
+	if err != nil {
+		panic(err)
+	}
+
+	if res.ExitCode != 0 {
+		panic("Non-zero exit code: " + res.Stderr)
+	}
+	resOut := strings.Trim(res.Stdout, "\\'")
+
+	decoded, err := b64.StdEncoding.DecodeString(resOut)
+	if err != nil {
+		panic(err)
+	}
+	password := strings.TrimSpace(string(decoded))
+
+	return password
 }
 
 // ResponseReceiver enables connector to receive results from the
