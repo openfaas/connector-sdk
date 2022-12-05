@@ -43,7 +43,7 @@ func main() {
 	}
 
 	config := &types.ControllerConfig{
-		RebuildInterval:         time.Second * 10,
+		RebuildInterval:         time.Second * 30,
 		GatewayURL:              gateway,
 		PrintResponse:           true,
 		PrintRequestBody:        true,
@@ -51,7 +51,7 @@ func main() {
 		AsyncFunctionInvocation: false,
 		ContentType:             "text/plain",
 		UserAgent:               "openfaasltd/timer-connector",
-		UpstreamTimeout:         time.Second * 60,
+		UpstreamTimeout:         time.Second * 120,
 	}
 
 	controller := types.NewController(creds, config)
