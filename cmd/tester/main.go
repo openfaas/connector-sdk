@@ -4,15 +4,13 @@
 package main
 
 import (
-	b64 "encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
-	execute "github.com/alexellis/go-execute/pkg/v1"
 	"github.com/openfaas/connector-sdk/types"
 	"github.com/openfaas/faas-provider/auth"
 )
@@ -24,11 +22,13 @@ func main() {
 		password,
 		gateway,
 		topic string
+		interval time.Duration
 	)
 
 	flag.StringVar(&username, "username", "admin", "username")
 	flag.StringVar(&password, "password", "", "password")
 	flag.StringVar(&gateway, "gateway", "http://127.0.0.1:8080", "gateway")
+	flag.DurationVar(&interval, "interval", time.Second*10, "Interval between emitting a sample message")
 	flag.StringVar(&topic, "topic", "payment.received", "Sample topic name to emit from timer")
 
 	flag.Parse()
@@ -42,6 +42,8 @@ func main() {
 		Password: password,
 	}
 
+	// Set Print* variables to false for production use
+
 	config := &types.ControllerConfig{
 		RebuildInterval:         time.Second * 30,
 		GatewayURL:              gateway,
@@ -53,6 +55,8 @@ func main() {
 		UserAgent:               "openfaasltd/timer-connector",
 		UpstreamTimeout:         time.Second * 120,
 	}
+
+	fmt.Printf("Tester connector. Topic: %s, Interval: %s\n", topic, interval)
 
 	controller := types.NewController(creds, config)
 
@@ -67,47 +71,33 @@ func main() {
 	// Simulate events emitting from queue/pub-sub
 	// by sleeping for 10 seconds between emitting the same message
 	messageID := 0
+
+	t := time.NewTicker(interval)
 	for {
-		log.Printf("Emitting event on topic payment.received - %s\n", gateway)
+		<-t.C
+
+		log.Printf("[tester] Emitting event on topic payment.received - %s\n", gateway)
 
 		h := additionalHeaders.Clone()
 		// Add a de-dupe header to the message
 		h.Add("X-Message-Id", fmt.Sprintf("%d", messageID))
 
-		eventData := []byte("test " + time.Now().String())
-		controller.Invoke(topic, &eventData, h)
+		payload, _ := json.Marshal(samplePayload{
+			CreatedAt: time.Now(),
+			MessageID: messageID,
+		})
+
+		controller.Invoke(topic, &payload, h)
 
 		messageID++
-		time.Sleep(10 * time.Second)
+
+		t.Reset(interval)
 	}
 }
 
-func lookupPasswordViaKubectl() string {
-
-	cmd := execute.ExecTask{
-		Command:      "kubectl",
-		Args:         []string{"get", "secret", "-n", "openfaas", "basic-auth", "-o", "jsonpath='{.data.basic-auth-password}'"},
-		StreamStdio:  false,
-		PrintCommand: false,
-	}
-
-	res, err := cmd.Execute()
-	if err != nil {
-		panic(err)
-	}
-
-	if res.ExitCode != 0 {
-		panic("Non-zero exit code: " + res.Stderr)
-	}
-	resOut := strings.Trim(res.Stdout, "\\'")
-
-	decoded, err := b64.StdEncoding.DecodeString(resOut)
-	if err != nil {
-		panic(err)
-	}
-	password := strings.TrimSpace(string(decoded))
-
-	return password
+type samplePayload struct {
+	CreatedAt time.Time `json:"createdAt"`
+	MessageID int       `json:"messageId"`
 }
 
 // ResponseReceiver enables connector to receive results from the
@@ -119,8 +109,8 @@ type ResponseReceiver struct {
 // received from the function invocation
 func (ResponseReceiver) Response(res types.InvokerResponse) {
 	if res.Error != nil {
-		log.Printf("tester got error: %s", res.Error.Error())
+		log.Printf("[tester] error: %s", res.Error.Error())
 	} else {
-		log.Printf("tester got result: [%d] %s => %s (%d) bytes (%fs)", res.Status, res.Topic, res.Function, len(*res.Body), res.Duration.Seconds())
+		log.Printf("[tester] result: [%d] %s => %s (%d) bytes (%fs)", res.Status, res.Topic, res.Function, len(*res.Body), res.Duration.Seconds())
 	}
 }

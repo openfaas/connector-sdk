@@ -56,7 +56,7 @@ func (i *Invoker) Invoke(topicMap *TopicMap, topic string, message *[]byte, head
 	i.InvokeWithContext(context.Background(), topicMap, topic, message, headers)
 }
 
-//InvokeWithContext triggers a function by accessing the API Gateway while propagating context
+// InvokeWithContext triggers a function by accessing the API Gateway while propagating context
 func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, topic string, message *[]byte, headers http.Header) {
 	if len(*message) == 0 {
 		i.Responses <- InvokerResponse{
@@ -68,13 +68,13 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 
 	matchedFunctions := topicMap.Match(topic)
 	for _, matchedFunction := range matchedFunctions {
-		log.Printf("Invoking: %s", matchedFunction)
+		log.Printf("[connector] Invoke: %s", matchedFunction)
 
 		gwURL := fmt.Sprintf("%s/%s", i.GatewayURL, matchedFunction)
 		reader := bytes.NewReader(*message)
 
 		if i.PrintRequest {
-			fmt.Printf("[invoke] %s => %s\n\t%s\n", topic, matchedFunction, string(*message))
+			log.Printf("[connector] %s => %s body:\t%s", topic, matchedFunction, string(*message))
 		}
 
 		start := time.Now()

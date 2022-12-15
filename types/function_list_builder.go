@@ -4,14 +4,13 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/openfaas/faas-provider/auth"
+	"github.com/openfaas/faas-provider/sdk"
 	"github.com/openfaas/faas-provider/types"
 )
 
@@ -21,6 +20,15 @@ type FunctionLookupBuilder struct {
 	Client         *http.Client
 	Credentials    *auth.BasicAuthCredentials
 	TopicDelimiter string
+	sdk            *sdk.SDK
+}
+
+func NewFunctionLookupBuilder(gatewayURL, topicDelimiter string, client *http.Client, credentials *auth.BasicAuthCredentials) *FunctionLookupBuilder {
+	u, _ := url.Parse(gatewayURL)
+	return &FunctionLookupBuilder{
+		sdk:            sdk.NewSDK(u, credentials, client),
+		TopicDelimiter: topicDelimiter,
+	}
 }
 
 // Build compiles a map of topic names and functions that have
@@ -28,7 +36,7 @@ type FunctionLookupBuilder struct {
 func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	var err error
 
-	namespaces, err := s.getNamespaces()
+	namespaces, err := s.sdk.GetNamespaces()
 	if err != nil {
 		return map[string][]string{}, err
 	}
@@ -36,110 +44,18 @@ func (s *FunctionLookupBuilder) Build() (map[string][]string, error) {
 	serviceMap := make(map[string][]string)
 
 	if len(namespaces) == 0 {
-		namespace := ""
-		functions, err := s.getFunctions(namespace)
+		namespaces = []string{""}
+	}
+
+	for _, namespace := range namespaces {
+		functions, err := s.sdk.GetFunctions(namespace)
 		if err != nil {
-			return map[string][]string{}, fmt.Errorf("unable to get functions: %w", err)
+			return map[string][]string{}, fmt.Errorf("unable to get functions in: %s, error: %w", namespace, err)
 		}
 		serviceMap = buildServiceMap(&functions, s.TopicDelimiter, namespace, serviceMap)
-	} else {
-		for _, namespace := range namespaces {
-			functions, err := s.getFunctions(namespace)
-			if err != nil {
-				return map[string][]string{}, fmt.Errorf("unable to get functions in: %s, error: %w", namespace, err)
-			}
-			serviceMap = buildServiceMap(&functions, s.TopicDelimiter, namespace, serviceMap)
-		}
 	}
 
 	return serviceMap, err
-}
-
-// getNamespaces get openfaas namespaces
-func (s *FunctionLookupBuilder) getNamespaces() ([]string, error) {
-	var (
-		err        error
-		namespaces []string
-	)
-	uri := fmt.Sprintf("%s/system/namespaces", s.GatewayURL)
-	req, err := http.NewRequest(http.MethodGet, uri, nil)
-	if err != nil {
-		return namespaces, fmt.Errorf("unable to create request: %s, error: %w", uri, err)
-	}
-
-	if s.Credentials != nil {
-		req.SetBasicAuth(s.Credentials.User, s.Credentials.Password)
-	}
-
-	res, err := s.Client.Do(req)
-	if err != nil {
-		return namespaces, fmt.Errorf("unable to make request: %w", err)
-
-	}
-
-	if res.Body != nil {
-		defer res.Body.Close()
-	}
-
-	bytesOut, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return namespaces, err
-	}
-
-	if res.StatusCode == http.StatusUnauthorized {
-		return namespaces, fmt.Errorf("check authorization, status code: %d", res.StatusCode)
-	}
-
-	if len(bytesOut) == 0 {
-		return namespaces, nil
-	}
-
-	if err := json.Unmarshal(bytesOut, &namespaces); err != nil {
-		return namespaces, fmt.Errorf("unable to marshal to JSON: %s, error: %w", string(bytesOut), err)
-	}
-
-	return namespaces, err
-}
-
-func (s *FunctionLookupBuilder) getFunctions(namespace string) ([]types.FunctionStatus, error) {
-	gateway := fmt.Sprintf("%s/system/functions", s.GatewayURL)
-	gatewayURL, err := url.Parse(gateway)
-	if err != nil {
-		return []types.FunctionStatus{}, fmt.Errorf("invalid gateway URL: %s", err.Error())
-	}
-	if len(namespace) > 0 {
-		query := gatewayURL.Query()
-		query.Set("namespace", namespace)
-		gatewayURL.RawQuery = query.Encode()
-	}
-
-	req, err := http.NewRequest(http.MethodGet, gatewayURL.String(), nil)
-	if err != nil {
-		return []types.FunctionStatus{}, fmt.Errorf("unable to create request: %w", err)
-	}
-
-	if s.Credentials != nil {
-		req.SetBasicAuth(s.Credentials.User, s.Credentials.Password)
-	}
-
-	res, err := s.Client.Do(req)
-	if err != nil {
-		return []types.FunctionStatus{}, fmt.Errorf("unable to make HTTP request: %w", err)
-	}
-
-	if res.Body != nil {
-		defer res.Body.Close()
-	}
-
-	bytesOut, _ := ioutil.ReadAll(res.Body)
-
-	functions := []types.FunctionStatus{}
-	if err := json.Unmarshal(bytesOut, &functions); err != nil {
-		return []types.FunctionStatus{},
-			fmt.Errorf("unable to unmarshal value: %q, error: %w", string(bytesOut), err)
-	}
-
-	return functions, nil
 }
 
 func buildServiceMap(functions *[]types.FunctionStatus, topicDelimiter, namespace string, serviceMap map[string][]string) map[string][]string {

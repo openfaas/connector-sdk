@@ -10,6 +10,12 @@ export PASSWORD="Your gateway password"
     -password=$PASSWORD
 ```
 
+Deploy an example function to be triggered by the topic:
+
+```bash
+faas-cli store deploy printer --annotation topic=payment.received
+```
+
 Emit a custom topic:
 
 ```sh
@@ -20,4 +26,10 @@ export PASSWORD="Your gateway password"
     -username=admin \
     -password=$PASSWORD \
     -topic "custom/topic/1"
+```
+
+Deploy an example function to be triggered by the topic:
+
+```bash
+faas-cli store deploy printer --annotation topic=custom/topic/1
 ```

@@ -1,5 +1,5 @@
 .ash_history
 connector
 kafka-connector
-tester
+cmd/tester/tester
 .vscode
