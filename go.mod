@@ -1,6 +1,6 @@
 module github.com/openfaas/connector-sdk
 
-go 1.17
+go 1.18
 
 require (
 	github.com/alexellis/go-execute v0.5.0
