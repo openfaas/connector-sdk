@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -141,7 +140,7 @@ func (i *Invoker) invoke(ctx context.Context, c *http.Client, gwURL, contentType
 	if res.Body != nil {
 		defer res.Body.Close()
 
-		bytesOut, err := ioutil.ReadAll(res.Body)
+		bytesOut, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, http.StatusServiceUnavailable,
 				nil,
