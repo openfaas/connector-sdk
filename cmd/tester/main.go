@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/openfaas/connector-sdk/types"
-	"github.com/openfaas/faas-provider/auth"
+	sdk "github.com/openfaas/go-sdk"
 )
 
 func main() {
@@ -37,11 +37,6 @@ func main() {
 		password = lookupPasswordViaKubectl()
 	}
 
-	creds := &auth.BasicAuthCredentials{
-		User:     username,
-		Password: password,
-	}
-
 	// Set Print* variables to false for production use
 
 	config := &types.ControllerConfig{
@@ -52,13 +47,18 @@ func main() {
 		PrintResponseBody:       true,
 		AsyncFunctionInvocation: false,
 		ContentType:             "text/plain",
-		UserAgent:               "openfaasltd/timer-connector",
+		UserAgent:               "openfaas-ce/timer-connector",
 		UpstreamTimeout:         time.Second * 120,
 	}
 
 	fmt.Printf("Tester connector. Topic: %s, Interval: %s\n", topic, interval)
 
-	controller := types.NewController(creds, config)
+	auth := &sdk.BasicAuth{
+		Username: username,
+		Password: password,
+	}
+
+	controller := types.NewController(auth, config)
 
 	receiver := ResponseReceiver{}
 	controller.Subscribe(&receiver)

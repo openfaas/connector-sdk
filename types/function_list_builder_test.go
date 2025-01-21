@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/openfaas/faas-provider/sdk"
 	"github.com/openfaas/faas-provider/types"
+	sdk "github.com/openfaas/go-sdk"
 )
 
 func Test_BuildSingleMatchingFunction(t *testing.T) {

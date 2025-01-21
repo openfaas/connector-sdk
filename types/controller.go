@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/openfaas/faas-provider/auth"
+	"github.com/openfaas/go-sdk"
 )
 
 // Controller is used to invoke functions on a per-topic basis and to subscribe to responses returned by said functions.
@@ -34,8 +34,7 @@ type controller struct {
 	// Map of which functions subscribe to which topics
 	TopicMap *TopicMap
 
-	// Credentials to access gateway
-	Credentials *auth.BasicAuthCredentials
+	Auth sdk.ClientAuth
 
 	// Subscribers which can receive messages from invocations.
 	// See note on ResponseSubscriber interface about blocking/long-running
@@ -47,7 +46,7 @@ type controller struct {
 }
 
 // NewController create a new connector SDK controller
-func NewController(credentials *auth.BasicAuthCredentials, config *ControllerConfig) Controller {
+func NewController(auth sdk.ClientAuth, config *ControllerConfig) Controller {
 
 	gatewayFunctionPath := gatewayRoute(config)
 
@@ -66,7 +65,7 @@ func NewController(credentials *auth.BasicAuthCredentials, config *ControllerCon
 		Config:      config,
 		Invoker:     invoker,
 		TopicMap:    &topicMap,
-		Credentials: credentials,
+		Auth:        auth,
 		Subscribers: subs,
 		lock:        &sync.RWMutex{},
 	}
@@ -116,7 +115,7 @@ func (c *controller) InvokeWithContext(ctx context.Context, topic string, messag
 // querying the API gateway.
 func (c *controller) BeginMapBuilder() {
 
-	lookupBuilder := NewFunctionLookupBuilder(c.Config.GatewayURL, c.Config.TopicAnnotationDelimiter, MakeClient(c.Config.UpstreamTimeout), c.Credentials)
+	lookupBuilder := NewFunctionLookupBuilder(c.Config.GatewayURL, c.Config.TopicAnnotationDelimiter, MakeClient(c.Config.UpstreamTimeout), c.Auth)
 
 	ticker := time.NewTicker(c.Config.RebuildInterval)
 	go c.synchronizeLookups(ticker, lookupBuilder, c.TopicMap)
