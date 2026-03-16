@@ -66,6 +66,13 @@ func (i *Invoker) InvokeWithContext(ctx context.Context, topicMap *TopicMap, top
 	}
 
 	matchedFunctions := topicMap.Match(topic)
+	if len(matchedFunctions) == 0 {
+		i.Responses <- InvokerResponse{
+			Context: ctx,
+			Error:   fmt.Errorf("no functions to invoke"),
+		}
+	}
+
 	for _, matchedFunction := range matchedFunctions {
 		log.Printf("[connector] Invoke: %s", matchedFunction)
 
